@@ -228,33 +228,46 @@ export class Pipe {
       let tileH = img.height / 4;
       let scaleMult = this.w / tileW;
       let propH = tileH * scaleMult;
+      
+      // 1. Math.floor prevents the sides of the pipes from looking blurry!
+      let drawX = Math.floor(this.x);
+      let drawY = Math.floor(this.y);
+      let drawW = Math.ceil(this.w);
+
       ctx.save();
       if (this.isTop) {
-        ctx.translate(this.x + this.w / 2, this.y);
+        ctx.translate(drawX + drawW / 2, drawY);
         ctx.scale(1, -1);
-        ctx.translate(-(this.x + this.w / 2), -this.y);
+        ctx.translate(-(drawX + drawW / 2), -drawY);
       }
-      let bodyY = this.isTop ? this.y : this.y + propH;
+      
+      // 2. THE FIX: We subtract 2 pixels from the bottom pipe's bodyY 
+      // so it tucks securely underneath the cap image!
+      let bodyY = this.isTop ? drawY : drawY + propH - 2;
+      
+      // Draw the Body First
       ctx.drawImage(
         img,
         this.styleIdx * tileW,
         tileH,
         tileW,
         tileH,
-        this.x,
+        drawX,
         bodyY,
-        this.w,
+        drawW,
         CONFIG.HEIGHT,
       );
+      
+      // Draw the Cap Second (Overlapping the body)
       ctx.drawImage(
         img,
         this.styleIdx * tileW,
         0,
         tileW,
         tileH,
-        this.x,
-        this.y,
-        this.w,
+        drawX,
+        drawY,
+        drawW,
         propH,
       );
       ctx.restore();

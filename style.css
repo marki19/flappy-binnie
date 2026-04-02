@@ -2,6 +2,9 @@
    1. MAIN GAME LAYOUT & RESPONSIVENESS
 ========================================= */
 body {
+    padding-top: env(safe-area-inset-top);
+    background-color: black; /* To blend the notch area */
+
     margin: 0;
     padding: 0;
     background-color: #0f0f0f;
