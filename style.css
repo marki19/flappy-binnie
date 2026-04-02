@@ -224,3 +224,79 @@ body {
     border-color: white;
     transform: scale(1.05);
 }
+
+/* --- SMART INSTALL NOTIFICATION BANNER --- */
+.install-toast {
+    position: absolute;
+    top: 20px;
+    left: 50%;
+    /* Start the banner hidden above the screen */
+    transform: translateX(-50%) translateY(-150%);
+    width: 90%;
+    max-width: 400px;
+    background: rgba(15, 15, 15, 0.95);
+    border: 3px solid #543847;
+    border-radius: 15px;
+    padding: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    z-index: 10000;
+    color: white;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+    /* Bouncy slide-in animation */
+    transition: transform 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+/* When this class is added via JS, it slides down! */
+.install-toast.show {
+    transform: translateX(-50%) translateY(0);
+}
+
+.toast-content {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.toast-icon {
+    width: 45px;
+    height: 45px;
+    border-radius: 8px;
+    object-fit: cover;
+    background: #87CEEB;
+}
+
+.toast-text {
+    display: flex;
+    flex-direction: column;
+}
+
+.toast-text strong {
+    font-size: 16px;
+    color: #ff7a00;
+}
+
+.toast-text span {
+    font-size: 12px;
+    color: #ccc;
+}
+
+.toast-btn {
+    background: #55aa55;
+    color: white;
+    border: none;
+    border-radius: 20px;
+    padding: 8px 15px;
+    font-weight: bold;
+    cursor: pointer;
+}
+
+.toast-close {
+    background: transparent;
+    color: #aaa;
+    border: none;
+    font-size: 16px;
+    cursor: pointer;
+    padding: 0 5px;
+}

@@ -8,9 +8,24 @@
     />
     <title>Flappy Binnie Web</title>
     <link rel="stylesheet" href="style.css" />
+    <link rel="manifest" href="manifest.json" />
   </head>
   <body>
     <canvas id="gameCanvas"></canvas>
+
+    <div id="installToast" class="install-toast">
+      <div class="toast-content">
+        <img src="assets/charIMG/ribinie.png" class="toast-icon" alt="Icon" />
+        <div class="toast-text">
+          <strong>Install Flappy Binnie!</strong>
+          <span id="toastDesc"
+            >Add to home screen for the best experience.</span
+          >
+        </div>
+      </div>
+      <button id="toastActionBtn" class="toast-btn">GET</button>
+      <button id="toastCloseBtn" class="toast-close">✖</button>
+    </div>
 
     <div id="charMenuUI" class="hidden">
       <div class="char-panel">
