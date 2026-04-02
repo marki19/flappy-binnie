@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Flappy Binnie Web</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <canvas id="gameCanvas" width="1080" height="720"></canvas>
+    
+    <div id="charMenuUI" class="hidden">
+        <div class="char-panel">
+            <h2>CUSTOM BIRD</h2>
+            
+            <div class="crop-container">
+                <video id="cameraFeed" autoplay playsinline class="hidden"></video>
+                <canvas id="cropCanvas" width="300" height="300"></canvas>
+                <div class="crop-overlay"></div>
+            </div>
+
+            <div class="controls">
+                <label for="zoomSlider">Zoom:</label>
+                <input type="range" id="zoomSlider" min="0.5" max="3" step="0.05" value="1">
+            </div>
+
+            <div class="btn-group">
+                <button id="btnCamera" class="action-btn">📷 CAMERA</button>
+                <label for="imageUpload" class="action-btn upload-btn">📁 UPLOAD</label>
+                <input type="file" id="imageUpload" accept="image/*" class="hidden">
+            </div>
+
+            <div class="btn-group bottom-btns">
+                <button id="btnCancelChar" class="danger-btn">CANCEL</button>
+                <button id="btnSaveChar" class="success-btn">SAVE FACE</button>
+                <button id="btnResetChar" class="danger-btn">DEFAULT</button>
+            </div>
+        </div>
+    </div>
+
+    <script type="module" src="js/character.js"></script>
+    <script type="module" src="js/main.js"></script>
+</body>
+</html>
