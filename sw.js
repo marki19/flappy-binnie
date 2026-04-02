@@ -1,8 +1,15 @@
-// A simple service worker just to pass the PWA requirements
-self.addEventListener('install', (e) => {
-    console.log('[Service Worker] Install');
+// A simple Service Worker to pass the mobile PWA requirements
+
+self.addEventListener('install', (event) => {
+    self.skipWaiting();
 });
 
-self.addEventListener('fetch', (e) => {
-    // Just passes requests through normally
+self.addEventListener('activate', (event) => {
+    event.waitUntil(clients.claim());
+});
+
+// THIS IS THE CRITICAL PART FOR MOBILE
+self.addEventListener('fetch', (event) => {
+    // Just pass the request through to the network normally
+    event.respondWith(fetch(event.request));
 });

@@ -1,21 +1,22 @@
 {
   "name": "Flappy Binnie",
-  "short_name": "FlappyBinnie",
+  "short_name": "Binnie",
   "start_url": "./index.html",
-  "display": "fullscreen",
+  "display": "standalone",
   "background_color": "#0f0f0f",
-  "theme_color": "#0f0f0f",
-  "orientation": "portrait",
+  "theme_color": "#543847",
   "icons": [
     {
       "src": "assets/charIMG/ribinie.png",
       "sizes": "192x192",
-      "type": "image/png"
+      "type": "image/png",
+      "purpose": "any maskable"
     },
     {
       "src": "assets/charIMG/ribinie.png",
       "sizes": "512x512",
-      "type": "image/png"
+      "type": "image/png",
+      "purpose": "any maskable"
     }
   ]
 }
