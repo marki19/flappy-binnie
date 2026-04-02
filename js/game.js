@@ -2,6 +2,7 @@ import { CONFIG } from "./config.js";
 import { Assets } from "./assets.js";
 import { Bird, Pipe } from "./sprites.js";
 import { CharacterMenu } from "./character.js";
+import { audioCtx } from "./assets.js"; // Make sure to add this import at the very top of game.js!
 
 export class Game {
   constructor(canvas, ctx) {
@@ -70,7 +71,6 @@ export class Game {
     this.bird.y = currentY;
 
     this.state = "PLAYING";
-    if (Assets.audio.music) Assets.audio.music.currentTime = 0;
     this.applySettings();
 
     this.playSFX("start");
@@ -82,7 +82,6 @@ export class Game {
   prepareRound() {
     this.resetGameVars();
     this.state = "GET_READY";
-    if (Assets.audio.music) Assets.audio.music.currentTime = 0;
     this.applySettings();
   }
 
@@ -90,33 +89,85 @@ export class Game {
     this.state = "MENU";
     this.resetGameVars();
     if (Assets.audio.music) {
-      Assets.audio.music.pause();
-      Assets.audio.music.currentTime = 0;
+      if (this.bgmSource) {
+        this.bgmSource.stop();
+        this.bgmSource = null;
+      }
     }
   }
 
   applySettings() {
     localStorage.setItem("flappyBinnieSettings", JSON.stringify(this.settings));
-    for (let key in Assets.audio)
-      if (Assets.audio[key]) Assets.audio[key].volume = this.settings.volume;
+
+    // Play music using our new Web Audio function if enabled
     if (Assets.audio.music) {
       if (
         this.settings.bgm &&
         (this.state === "PLAYING" || this.state === "GET_READY")
       ) {
-        let p = Assets.audio.music.play();
-        if (p !== undefined) p.catch((e) => {});
+        if (!this.bgmSource) {
+          this.playSFX("music");
+        }
       } else {
-        Assets.audio.music.pause();
+        // Web Audio API: We stop the active source node
+        if (this.bgmSource) {
+          try {
+            this.bgmSource.stop();
+          } catch (e) {}
+          this.bgmSource = null;
+        }
       }
     }
   }
 
-  playSFX(soundName) {
-    if (this.settings.sfx && Assets.audio[soundName]) {
-      Assets.audio[soundName].currentTime = 0;
-      let p = Assets.audio[soundName].play();
-      if (p !== undefined) p.catch((e) => {});
+  // ... later in your game class ...
+
+  playSFX(key) {
+    // 1. Check if SFX are enabled in settings
+    if (this.settings && !this.settings.sfx && key !== "music") return;
+    if (this.settings && !this.settings.bgm && key === "music") return;
+
+    let buffer = Assets.audio[key];
+    if (buffer) {
+      if (audioCtx.state === "suspended") {
+        audioCtx.resume();
+      }
+
+      let source = audioCtx.createBufferSource();
+      source.buffer = buffer;
+
+      let gainNode = audioCtx.createGain();
+
+      // --- THE TRIM SETTINGS ---
+      // 'trimAmount' is how many seconds to skip at the beginning of the file!
+      let trimAmount = 0;
+
+      if (key === "music") {
+        gainNode.gain.value = 1.0;
+        trimAmount = 1; // Skips first 1 seconds
+        source.loop = true;
+        this.bgmSource = source;
+      } else if (key === "start") {
+        gainNode.gain.value = 1.5;
+        trimAmount = 0.5; // Skips first 0.2 seconds (Adjust this to fix the delay!)
+      } else if (key === "flap") {
+        gainNode.gain.value = 1.5;
+        trimAmount = 0.05; // Skips a tiny 0.05 seconds to make tapping feel instantly crisp
+      } else if (key === "crash") {
+        gainNode.gain.value = 1.5;
+        trimAmount = 0.1; // Skips first 0.1 seconds
+      }
+
+      if (this.settings && this.settings.volume !== undefined) {
+        gainNode.gain.value *= this.settings.volume;
+      }
+
+      source.connect(gainNode);
+      gainNode.connect(audioCtx.destination);
+
+      // PLAY THE SOUND: start(whenToStart, offsetInSeconds)
+      // This plays instantly (0), but starts the file at your trimAmount!
+      source.start(0, trimAmount);
     }
   }
 
@@ -132,7 +183,7 @@ export class Game {
       let ach = CONFIG.ACHIEVEMENTS.find((a) => a.id === id);
       if (ach) {
         this.activeToast = ach.name;
-        this.toastTimer = 180; // Show toast for 3 seconds (60fps * 3)
+        this.toastTimer = 120; // Show toast for 2 seconds (60fps * 2)
         this.playSFX("start"); // Ding sound
       }
     }
@@ -185,7 +236,7 @@ export class Game {
       this.state = "GAMEOVER";
       this.deathTime = Date.now();
       this.shakeTimer = 20;
-
+      this.playSFX("crash");
       if (crashedIntoPipe) this.unlockAchievement("die_pipe");
 
       if (this.score > this.highScore) {
@@ -193,39 +244,22 @@ export class Game {
         this.isNewBest = true;
         localStorage.setItem("flappyBinnieHighScore", this.highScore);
       }
-      if (Assets.audio.music) Assets.audio.music.pause();
-      this.playSFX("crash");
-      this.bird.velocity = -7;
+      if (this.bgmSource) {
+        this.bgmSource.stop();
+        this.bgmSource = null;
+      }
     }
   }
 
   bindEvents() {
-    let audioUnlocked = false;
     const handlePointer = (e) => {
-      // ---> NEW: Ignore clicks/touches if they hit the HTML UI instead of the Canvas
+      // Ignore clicks/touches if they hit the HTML UI instead of the Canvas
       if (e.target !== this.canvas) return;
 
       // Check if it's a mouse event and ensure it is ONLY the left click (button 0)
       if (e.type === "mousedown" && e.button !== 0) return;
       if (e.cancelable && e.type !== "mousedown") e.preventDefault();
 
-      if (!audioUnlocked) {
-        if (Assets.audio.music) {
-          let p = Assets.audio.music.play();
-          if (p !== undefined)
-            p.then(() => {
-              if (
-                this.state === "MENU" ||
-                this.state === "SETTINGS" ||
-                this.state === "ACHIEVEMENTS"
-              ) {
-                Assets.audio.music.pause();
-                Assets.audio.music.currentTime = 0;
-              }
-            }).catch(() => {});
-        }
-        audioUnlocked = true;
-      }
       let clientX = e.clientX;
       let clientY = e.clientY;
       if (e.touches && e.touches.length > 0) {
@@ -250,37 +284,18 @@ export class Game {
     window.addEventListener("keydown", (e) => {
       if (e.code !== "Space") return;
 
-      // ---> NEW: Prevent Spacebar from triggering game logic if Character UI is open
+      // Prevent Spacebar from triggering game logic if Character UI is open
       const charMenu = document.getElementById("charMenuUI");
       if (charMenu && !charMenu.classList.contains("hidden")) return;
 
       if (e.cancelable) e.preventDefault();
-      if (!audioUnlocked) {
-        if (Assets.audio.music) {
-          let p = Assets.audio.music.play();
-          if (p !== undefined)
-            p.then(() => {
-              if (
-                this.state === "MENU" ||
-                this.state === "SETTINGS" ||
-                this.state === "ACHIEVEMENTS"
-              ) {
-                Assets.audio.music.pause();
-                Assets.audio.music.currentTime = 0;
-              }
-            }).catch(() => {});
-        }
-        audioUnlocked = true;
-      }
 
       if (this.state === "MENU") {
         this.startFromMenu();
       } else if (this.state === "GET_READY") {
         this.state = "PLAYING";
-        this.playSFX("start");
         this.spawnPipes();
         this.bird.flap();
-        this.unlockAchievement("first_flap");
       } else if (this.state === "PLAYING") {
         this.playSFX("flap");
         this.bird.flap();
@@ -453,6 +468,59 @@ export class Game {
     this.ctx.restore();
   }
 
+  //DRAW MEDAL
+  drawMedal(x, y, targetScore) {
+    let colors = null;
+    // Define the score requirements for each medal
+    if (targetScore >= 40)
+      colors = { main: "#e5e4e2", border: "#b2b2b2", name: "PLATINUM" };
+    else if (targetScore >= 30)
+      colors = { main: "#ffd700", border: "#d4af37", name: "GOLD" };
+    else if (targetScore >= 20)
+      colors = { main: "#c0c0c0", border: "#a9a9a9", name: "SILVER" };
+    else if (targetScore >= 10)
+      colors = { main: "#cd7f32", border: "#8b4513", name: "BRONZE" };
+
+    // If the high score is under 10, they haven't earned a medal yet, so draw nothing.
+    if (!colors) return;
+
+    const ctx = this.ctx;
+    ctx.save();
+
+    // Draw the Text Label above the medal
+    this.drawText(`BEST: ${colors.name}`, 18, y - 45, x, "center", colors.main);
+
+    // 1. Draw the Red Ribbon
+    ctx.fillStyle = "#d32f2f";
+    ctx.beginPath();
+    ctx.moveTo(x - 15, y - 25);
+    ctx.lineTo(x + 15, y - 25);
+    ctx.lineTo(x + 20, y + 15);
+    ctx.lineTo(x, y + 5);
+    ctx.lineTo(x - 20, y + 15);
+    ctx.fill();
+
+    // 2. Draw the Outer Medal Border
+    ctx.beginPath();
+    ctx.arc(x, y, 22, 0, Math.PI * 2);
+    ctx.fillStyle = colors.border;
+    ctx.fill();
+
+    // 3. Draw the Inner Medal Face
+    ctx.beginPath();
+    ctx.arc(x, y, 18, 0, Math.PI * 2);
+    ctx.fillStyle = colors.main;
+    ctx.fill();
+
+    // 4. Draw a shiny glare on the top-left to make it look metallic!
+    ctx.beginPath();
+    ctx.arc(x - 6, y - 6, 6, 0, Math.PI * 2);
+    ctx.fillStyle = "rgba(255, 255, 255, 0.5)";
+    ctx.fill();
+
+    ctx.restore();
+  }
+
   // --- NEW: MEDAL SYSTEM ---
   drawScorePanel() {
     let cx = CONFIG.WIDTH / 2;
@@ -534,16 +602,16 @@ export class Game {
 
     let medalColor = null;
     let medalName = "";
-    if (this.score >= 40) {
+    if (this.highScore >= 40) {
       medalColor = "#e5e4e2";
       medalName = "PLATINUM";
-    } else if (this.score >= 30) {
+    } else if (this.highScore >= 30) {
       medalColor = "#ffd700";
       medalName = "GOLD";
-    } else if (this.score >= 20) {
+    } else if (this.highScore >= 20) {
       medalColor = "#c0c0c0";
       medalName = "SILVER";
-    } else if (this.score >= 10) {
+    } else if (this.highScore >= 10) {
       medalColor = "#cd7f32";
       medalName = "BRONZE";
     }
