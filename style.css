@@ -1,6 +1,10 @@
 /* =========================================
    1. MAIN GAME LAYOUT & RESPONSIVENESS
 ========================================= */
+:root {
+    color-scheme: only light;
+}
+
 body {
     padding-top: env(safe-area-inset-top);
     background-color: black; /* To blend the notch area */

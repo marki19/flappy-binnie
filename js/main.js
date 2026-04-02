@@ -3,9 +3,16 @@ import { loadAssets } from "./assets.js";
 import { Game } from "./game.js";
 
 // Register Service Worker for PWA
+
 if ("serviceWorker" in navigator) {
-  navigator.serviceWorker.register("./sw.js");
+  window.addEventListener("load", () => {
+    navigator.serviceWorker
+      .register("./sw.js")
+      .then((reg) => console.log("Service Worker registered!", reg))
+      .catch((err) => console.log("Service Worker failed:", err));
+  });
 }
+
 
 window.onload = () => {
   const canvas = document.getElementById("gameCanvas");
@@ -48,7 +55,7 @@ function showInstallBanner() {
   // Small delay so it pops up a second after the game loads
   setTimeout(() => {
     if (installToast) installToast.classList.add("show");
-  }, 1500);
+  }, 1800);
 }
 
 if (isIOS) {
