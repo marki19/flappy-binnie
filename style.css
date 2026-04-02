@@ -4,53 +4,63 @@
 body {
     margin: 0;
     padding: 0;
-    background-color: #0f0f0f; /* Restores the dark border background */
+    background-color: #0f0f0f;
+    /* Restores the dark border background */
     display: flex;
-    justify-content: center;   /* Centers the canvas horizontally */
-    align-items: center;       /* Centers the canvas vertically */
-    
+    justify-content: center;
+    /* Centers the canvas horizontally */
+    align-items: center;
+    /* Centers the canvas vertically */
+
     /* 100dvh handles mobile address bars perfectly */
     height: 100vh;
-    height: 100dvh; 
-    
+    height: 100dvh;
+
     overflow: hidden;
     font-family: 'Courier New', Courier, monospace;
-    
+
     /* Disables all mobile browser gestures (pull-to-refresh, pinch zoom) */
-    touch-action: none; 
+    touch-action: none;
     user-select: none;
     -webkit-user-select: none;
 }
 
 #gameCanvas {
-    background-color: #87CEEB; /* Fallback sky blue */
-    
+    background-color: #87CEEB;
+    /* Fallback sky blue */
+
     /* Perfect aspect ratio scaling (No stretching or squishing) */
     max-width: 100%;
     max-height: 100%;
     aspect-ratio: 1080 / 720;
     object-fit: contain;
-    
+
     /* Keeps pixel art sharp on high-res desktop monitors */
-    image-rendering: pixelated; 
+    image-rendering: pixelated;
     box-shadow: 0 0 20px rgba(0, 0, 0, 0.8);
 }
 
 /* =========================================
    2. CHARACTER CREATOR MENU UI
 ========================================= */
-.hidden { display: none !important; }
+.hidden {
+    display: none !important;
+}
 
 #charMenuUI {
-    position: absolute; /* Takes the UI out of the normal layout flow */
-    top: 0; left: 0; 
-    width: 100vw; height: 100dvh;
+    position: absolute;
+    /* Takes the UI out of the normal layout flow */
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100dvh;
     background: rgba(0, 0, 0, 0.85);
     display: flex;
     justify-content: center;
     align-items: center;
-    z-index: 100; /* Forces the menu to always sit on top of the canvas */
-    touch-action: none; 
+    z-index: 100;
+    /* Forces the menu to always sit on top of the canvas */
+    touch-action: none;
 }
 
 .char-panel {
@@ -63,13 +73,13 @@ body {
     display: flex;
     flex-direction: column;
     align-items: center;
-    box-shadow: 0px 10px 30px rgba(0,0,0,0.5);
+    box-shadow: 0px 10px 30px rgba(0, 0, 0, 0.5);
 }
 
-.char-panel h2 { 
-    margin: 0 0 15px 0; 
-    color: #ff7a00; 
-    text-shadow: 2px 2px 0px #fff; 
+.char-panel h2 {
+    margin: 0 0 15px 0;
+    color: #ff7a00;
+    text-shadow: 2px 2px 0px #fff;
     font-size: 28px;
 }
 
@@ -84,61 +94,138 @@ body {
     border: 4px solid #543847;
 }
 
-.crop-container:active { cursor: grabbing; }
+.crop-container:active {
+    cursor: grabbing;
+}
 
 .crop-overlay {
     position: absolute;
-    top: 0; left: 0; right: 0; bottom: 0;
-    pointer-events: none; /* Lets you drag the canvas underneath it */
-    box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.5); /* Creates the dark outside area */
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    pointer-events: none;
+    /* Lets you drag the canvas underneath it */
+    box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.5);
+    /* Creates the dark outside area */
     border-radius: 50%;
     border: 4px dashed white;
-    width: 250px; height: 250px;
+    width: 250px;
+    height: 250px;
     margin: auto;
 }
 
-#cropCanvas { width: 100%; height: 100%; }
-#cameraFeed { width: 100%; height: 100%; object-fit: cover; }
+#cropCanvas {
+    width: 100%;
+    height: 100%;
+}
 
-.controls { width: 100%; margin: 15px 0; display: flex; align-items: center; font-weight: bold; }
-.controls input { flex-grow: 1; margin-left: 10px; cursor: pointer; }
+#cameraFeed {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
 
-.btn-group { display: flex; gap: 10px; width: 100%; justify-content: center; margin-bottom: 10px; }
-.bottom-btns { margin-top: 10px; }
+.controls {
+    width: 100%;
+    margin: 15px 0;
+    display: flex;
+    align-items: center;
+    font-weight: bold;
+}
 
-.action-btn, .success-btn, .danger-btn {
+.controls input {
+    flex-grow: 1;
+    margin-left: 10px;
+    cursor: pointer;
+}
+
+.btn-group {
+    display: flex;
+    gap: 10px;
+    width: 100%;
+    justify-content: center;
+    margin-bottom: 10px;
+}
+
+.bottom-btns {
+    margin-top: 10px;
+}
+
+.action-btn,
+.success-btn,
+.danger-btn {
     font-family: 'Courier New', Courier, monospace;
-    font-weight: bold; font-size: 16px;
-    padding: 10px 15px; border-radius: 8px; border: 3px solid #543847;
-    cursor: pointer; text-align: center; color: white;
+    font-weight: bold;
+    font-size: 16px;
+    padding: 10px 15px;
+    border-radius: 8px;
+    border: 3px solid #543847;
+    cursor: pointer;
+    text-align: center;
+    color: white;
     transition: transform 0.1s;
 }
 
-.action-btn:active, .success-btn:active, .danger-btn:active {
-    transform: scale(0.95); /* Little click animation */
+.action-btn:active,
+.success-btn:active,
+.danger-btn:active {
+    transform: scale(0.95);
+    /* Little click animation */
 }
 
-.action-btn { background: #4287f5; }
-.success-btn { background: #55aa55; }
-.danger-btn { background: #d1685a; }
-.upload-btn { display: inline-block; padding: 10px 15px; }
+.action-btn {
+    background: #4287f5;
+}
+
+.success-btn {
+    background: #55aa55;
+}
+
+.danger-btn {
+    background: #d1685a;
+}
+
+.upload-btn {
+    display: inline-block;
+    padding: 10px 15px;
+}
 
 /* --- WING SELECTOR UI --- */
-.wing-selector { width: 100%; text-align: center; margin: 15px 0 10px 0; }
-.wing-selector p { margin: 0 0 8px 0; font-weight: bold; color: #543847; }
-.wing-btn-group { display: flex; justify-content: center; gap: 8px; }
+.wing-selector {
+    width: 100%;
+    text-align: center;
+    margin: 15px 0 10px 0;
+}
+
+.wing-selector p {
+    margin: 0 0 8px 0;
+    font-weight: bold;
+    color: #543847;
+}
+
+.wing-btn-group {
+    display: flex;
+    justify-content: center;
+    gap: 8px;
+}
 
 .wing-btn {
     font-family: 'Courier New', Courier, monospace;
-    font-weight: bold; font-size: 14px;
-    padding: 8px 12px; border-radius: 6px; border: 3px solid #543847;
-    background: #c2b280; color: #543847; cursor: pointer;
+    font-weight: bold;
+    font-size: 14px;
+    padding: 8px 12px;
+    border-radius: 6px;
+    border: 3px solid #543847;
+    background: #c2b280;
+    color: #543847;
+    cursor: pointer;
     transition: all 0.1s;
 }
 
-.wing-btn.active { 
-    background: #ff7a00; 
-    color: white; 
-    border-color: white; 
+.wing-btn.active {
+    background: #ff7a00;
+    color: white;
+    border-color: white;
     transform: scale(1.05);
 }
