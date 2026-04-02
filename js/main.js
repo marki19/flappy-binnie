@@ -4,6 +4,11 @@ import { Game } from "./game.js";
 
 window.onload = () => {
   const canvas = document.getElementById("gameCanvas");
+
+  // Tell the canvas to use the dimensions we decided in config.js
+  canvas.width = CONFIG.WIDTH;
+  canvas.height = CONFIG.HEIGHT;
+  
   const ctx = canvas.getContext("2d");
 
   // ADD THIS LINE: Disables anti-aliasing on the canvas context

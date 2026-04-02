@@ -27,16 +27,11 @@ body {
 
 #gameCanvas {
     background-color: #87CEEB;
-    /* Fallback sky blue */
-
-    /* Perfect aspect ratio scaling (No stretching or squishing) */
     max-width: 100%;
     max-height: 100%;
-    aspect-ratio: 1080 / 720;
+    /* REMOVE THIS LINE: aspect-ratio: 1080 / 720; */
     object-fit: contain;
-
-    /* Keeps pixel art sharp on high-res desktop monitors */
-    image-rendering: pixelated;
+    image-rendering: pixelated; 
     box-shadow: 0 0 20px rgba(0, 0, 0, 0.8);
 }
 

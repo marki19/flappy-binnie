@@ -1,7 +1,11 @@
+// At the very top of config.js, before exporting CONFIG
+const isMobilePortrait = window.innerHeight > window.innerWidth;
+
 export const CONFIG = {
   TITLE: "Flappy Binnie",
-  WIDTH: 1080,
-  HEIGHT: 720,
+  // Swap dimensions if holding a phone!
+  WIDTH: isMobilePortrait ? 720 : 1080,
+  HEIGHT: isMobilePortrait ? 1080 : 720,
   BIRD_SIZE: 80,
   GRAVITY: 0.4,
   FLAP_STRENGTH: -8,
