@@ -3,11 +3,23 @@ import { Assets } from "./assets.js";
 import { Bird, Pipe } from "./sprites.js";
 import { CharacterMenu } from "./character.js";
 import { audioCtx } from "./assets.js"; // Make sure to add this import at the very top of game.js!
+import { savePlayerData } from "./database.js";
 
 export class Game {
   constructor(canvas, ctx) {
     this.canvas = canvas;
     this.ctx = ctx;
+
+    this.username = playerName;
+
+    // Use cloud highscore if it's better than the local one
+    const localHigh =
+      parseInt(localStorage.getItem("flappyBinnieHighScore")) || 0;
+    this.highScore = Math.max(localHigh, cloudData?.highScore || 0);
+
+    // Initialize coins from the cloud (or 0)
+    this.coins = cloudData?.coins || 0;
+
     this.highScore =
       parseInt(localStorage.getItem("flappyBinnieHighScore")) || 0;
     this.settings = JSON.parse(
@@ -210,7 +222,7 @@ export class Game {
     // --- DYNAMIC DELTA ---
     // If we are on mobile (WIDTH is 450), limit the vertical jump to 130px.
     // If we are on desktop (WIDTH is 1080), allow larger 180px jumps.
-    let maxDelta = (CONFIG.WIDTH === 450) ? 130 : 180; 
+    let maxDelta = CONFIG.WIDTH === 450 ? 130 : 180;
 
     let shift = Math.random() * maxDelta * 2 - maxDelta;
     let gapY = this.lastPipeY + shift;
@@ -264,6 +276,12 @@ export class Game {
         this.bgmSource.stop();
         this.bgmSource = null;
       }
+      savePlayerData(
+        this.username,
+        this.highScore,
+        this.coins,
+        this.unlockedAchievements, // You can also save unlocked wings here later
+      );
     }
   }
 

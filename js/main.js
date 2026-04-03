@@ -1,6 +1,37 @@
 import { CONFIG } from "./config.js";
 import { loadAssets } from "./assets.js";
 import { Game } from "./game.js";
+import {db} from "./database.js";
+import { doc, getDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+
+window.addEventListener('load', async () => {
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+
+    // 1. Ask for the player's name
+    let playerName = localStorage.getItem("fb_username");
+    if (!playerName) {
+        playerName = prompt("Enter your Pilot Name:", "Player1");
+        if (!playerName) playerName = "Guest_" + Math.floor(Math.random() * 1000);
+        localStorage.setItem("fb_username", playerName);
+    }
+
+    // 2. Try to fetch their data from Firebase
+    let cloudData = null;
+    try {
+        const userRef = doc(db, "users", playerName);
+        const docSnap = await getDoc(userRef);
+        if (docSnap.exists()) {
+            cloudData = docSnap.data();
+            console.log("Cloud data loaded:", cloudData);
+        }
+    } catch (e) {
+        console.warn("Could not reach database, playing offline.");
+    }
+
+    // 3. Start the game and pass the cloud data (if any) to the Game class
+    const game = new Game(canvas, ctx, playerName, cloudData);
+});
 
 // Register Service Worker for PWA
 
