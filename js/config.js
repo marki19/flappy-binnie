@@ -31,7 +31,7 @@ export const CONFIG = {
   // Slightly larger vertical safe space on mobile to account for the stronger flap.
   VERT_GAP: useMobileGrid ? 230 : 200,
 
-  GROUND_HEIGHT: 150,
+  GROUND_HEIGHT: useMobileGrid ? 200 : 150,
   BG_OFFSET: -900,
   // ... Keep all your BACKGROUNDS, ACHIEVEMENTS, and SOUNDS exactly the same below this line!
   BACKGROUNDS: [
