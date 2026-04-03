@@ -1,18 +1,20 @@
 import { CONFIG } from "./config.js";
 import { Assets } from "./assets.js";
-import { Bird, Pipe } from "./sprites.js";
+import { Bird, Pipe, Coin } from "./sprites.js";
 import { CharacterMenu } from "./character.js";
+import { AchievementsMenu } from "./achievements.js";
 import { audioCtx } from "./assets.js"; // Make sure to add this import at the very top of game.js!
 import { savePlayerData } from "./database.js";
 
 export class Game {
-  constructor(canvas, ctx) {
+  constructor(canvas, ctx, playerName, cloudData) {
     this.canvas = canvas;
     this.ctx = ctx;
 
     this.username = playerName;
 
     // Use cloud highscore if it's better than the local one
+
     const localHigh =
       parseInt(localStorage.getItem("flappyBinnieHighScore")) || 0;
     this.highScore = Math.max(localHigh, cloudData?.highScore || 0);
@@ -20,8 +22,6 @@ export class Game {
     // Initialize coins from the cloud (or 0)
     this.coins = cloudData?.coins || 0;
 
-    this.highScore =
-      parseInt(localStorage.getItem("flappyBinnieHighScore")) || 0;
     this.settings = JSON.parse(
       localStorage.getItem("flappyBinnieSettings"),
     ) || { bgm: true, sfx: true, volume: 1 };
@@ -37,7 +37,18 @@ export class Game {
       "butterfly",
       "bone",
       "crystal",
+      "ninja",
+      "pirate",
+      "zombie",
+      "alien",
+      "ghost",
+      "phoenix",
+      "king",
+      "cyborg",
+      "wizard",
+      "god",
     ];
+
     let savedWing = localStorage.getItem("flappyBinnieWingStyle") || "classic";
     this.wingIndex = this.wingStyles.indexOf(savedWing);
     if (this.wingIndex === -1) this.wingIndex = 0;
@@ -57,9 +68,29 @@ export class Game {
     requestAnimationFrame(this.loop);
   }
 
+  // --- NEW: DYNAMIC DATA INJECTION ---
+  // This allows the Sidebar HTML to update the game without refreshing the page!
+  updatePlayerData(playerName, cloudData) {
+    this.username = playerName;
+
+    const localHigh =
+      parseInt(localStorage.getItem("flappyBinnieHighScore")) || 0;
+    this.highScore = Math.max(localHigh, cloudData?.highScore || 0);
+    this.coins = cloudData?.coins || 0;
+
+    if (cloudData?.unlockedAchievements) {
+      this.unlockedAchievements = cloudData.unlockedAchievements;
+      localStorage.setItem(
+        "flappyBinnieAchievements",
+        JSON.stringify(this.unlockedAchievements),
+      );
+    }
+  }
+
   resetGameVars() {
     this.bird = new Bird();
     this.pipes = [];
+    this.coinsList = [];
     this.score = 0;
     this.level = 1;
     this.currentSpeed = CONFIG.PIPE_SPEED;
@@ -135,6 +166,8 @@ export class Game {
   // ... later in your game class ...
 
   playSFX(key) {
+    console.log("GAME DEMANDED TO PLAY AUDIO", key);
+
     // 1. Check if SFX are enabled in settings
     if (this.settings && !this.settings.sfx && key !== "music") return;
     if (this.settings && !this.settings.bgm && key === "music") return;
@@ -155,6 +188,11 @@ export class Game {
       let trimAmount = 0;
 
       if (key === "music") {
+        if (this.bgmSource) {
+          try {
+            this.bgmSource.stop();
+          } catch (e) {}
+        }
         gainNode.gain.value = 0.5;
         trimAmount = 1; // Skips first 1 seconds
         source.loop = true;
@@ -168,6 +206,12 @@ export class Game {
       } else if (key === "crash") {
         gainNode.gain.value = 1;
         trimAmount = 0.1; // Skips first 0.1 seconds
+      } else if (key === "coin") {
+        gainNode.gain.value = 5;
+        trimAmount = 0.2; // Skips first 0.2 seconds
+      } else if (key === "error") {
+        gainNode.gain.value = 1.0; // Normal volume
+        trimAmount = 0.2; // Play from the very beginning
       }
 
       if (this.settings && this.settings.volume !== undefined) {
@@ -202,10 +246,20 @@ export class Game {
   }
 
   checkLiveAchievements() {
-    if (this.score >= 10) this.unlockAchievement("score_10");
-    if (this.score >= 20) this.unlockAchievement("score_20");
-    if (this.score >= 30) this.unlockAchievement("score_30");
-    if (this.score >= 40) this.unlockAchievement("score_40");
+    // FIX: Check whichever is higher—the current run, or the saved high score!
+    let best = Math.max(this.score, this.highScore);
+
+    if (best >= 10) this.unlockAchievement("score_10");
+    if (best >= 20) this.unlockAchievement("score_20");
+    if (best >= 30) this.unlockAchievement("score_30");
+    if (best >= 40) this.unlockAchievement("score_40");
+    if (best >= 50) this.unlockAchievement("score_50");
+    if (best >= 60) this.unlockAchievement("score_60");
+    if (best >= 70) this.unlockAchievement("score_70");
+    if (best >= 80) this.unlockAchievement("score_80");
+    if (best >= 90) this.unlockAchievement("score_90");
+    if (best >= 100) this.unlockAchievement("score_100");
+
     if (this.level >= 5) this.unlockAchievement("max_speed");
     if (localStorage.getItem("flappyBinnieCustomFace"))
       this.unlockAchievement("custom_face");
@@ -257,6 +311,15 @@ export class Game {
         this.currentPipeStyle,
       ),
     );
+
+    // 70% chance to spawn a coin perfectly in the middle of the gap!
+    if (Math.random() > 0.3) {
+      // THE ALIGNMENT FIX:
+      // Pipe starts at (WIDTH + 50). We add half the pipe's width to find the exact dead-center!
+      let exactCenterX = CONFIG.WIDTH + 50 + CONFIG.PIPE_WIDTH / 2;
+
+      this.coinsList.push(new Coin(exactCenterX, gapY));
+    }
   }
 
   triggerDeath(crashedIntoPipe) {
@@ -272,8 +335,11 @@ export class Game {
         this.isNewBest = true;
         localStorage.setItem("flappyBinnieHighScore", this.highScore);
       }
+      // CRITICAL FIX: Safely stop the music
       if (this.bgmSource) {
-        this.bgmSource.stop();
+        try {
+          this.bgmSource.stop();
+        } catch (e) {}
         this.bgmSource = null;
       }
       savePlayerData(
@@ -289,6 +355,9 @@ export class Game {
     const handlePointer = (e) => {
       // Ignore clicks/touches if they hit the HTML UI instead of the Canvas
       if (e.target !== this.canvas) return;
+
+      // CRITICAL FIX: Prevent mobile 'touchstart' from triggering a fake 'mousedown' a millisecond later!
+      if (e.type === "touchstart" && e.cancelable) e.preventDefault();
 
       // Check if it's a mouse event and ensure it is ONLY the left click (button 0)
       if (e.type === "mousedown" && e.button !== 0) return;
@@ -353,14 +422,21 @@ export class Game {
     let cy = CONFIG.HEIGHT / 2;
 
     if (this.state === "MENU") {
-      // Main menu updated to fit the new button
-      if (this.isClicked(mx, my, cx, cy + 50, 200, 60)) this.startFromMenu();
-      if (this.isClicked(mx, my, cx, cy + 120, 200, 60))
-        this.state = "SETTINGS";
-      if (this.isClicked(mx, my, cx, cy + 190, 200, 60))
-        this.state = "ACHIEVEMENTS";
-      if (this.isClicked(mx, my, cx, cy + 260, 200, 60)) CharacterMenu.open();
+      if (this.state === "MENU") {
+        // Shrunk button heights to 50 and tightened gaps to fit 4 buttons!
+        if (this.isClicked(mx, my, cx, cy + 10, 200, 50)) this.startFromMenu();
+        if (this.isClicked(mx, my, cx, cy + 75, 200, 50))
+          AchievementsMenu.open(this);
+        if (this.isClicked(mx, my, cx, cy + 140, 200, 50))
+          CharacterMenu.open(this);
 
+        // NEW LEADERBOARD BUTTON
+        if (this.isClicked(mx, my, cx, cy + 205, 200, 50)) {
+          this.playSFX("flap");
+          if (window.openLeaderboard) window.openLeaderboard();
+        }
+      }
+      // Wing selection arrows
       if (this.isClicked(mx, my, cx - 120, cy - 90, 50, 50)) {
         this.wingIndex =
           (this.wingIndex - 1 + this.wingStyles.length) %
@@ -379,34 +455,6 @@ export class Game {
         );
         this.playSFX("flap");
       }
-    } else if (this.state === "SETTINGS") {
-      // Matches the new tighter button layout
-      if (this.isClicked(mx, my, cx + 80, cy - 50, 80, 45)) {
-        this.settings.bgm = !this.settings.bgm;
-        this.applySettings();
-      }
-      if (this.isClicked(mx, my, cx + 80, cy + 20, 80, 45)) {
-        this.settings.sfx = !this.settings.sfx;
-        this.applySettings();
-        this.playSFX("flap");
-      }
-      if (this.isClicked(mx, my, cx + 20, cy + 90, 45, 45)) {
-        this.settings.volume = Math.max(0, this.settings.volume - 0.1);
-        this.applySettings();
-        this.playSFX("flap");
-      }
-      if (this.isClicked(mx, my, cx + 130, cy + 90, 45, 45)) {
-        this.settings.volume = Math.min(1, this.settings.volume + 0.1);
-        this.applySettings();
-        this.playSFX("flap");
-      }
-      if (this.isClicked(mx, my, cx, cy + 150, 160, 50)) {
-        this.state = "MENU";
-      }
-    } else if (this.state === "ACHIEVEMENTS") {
-      if (this.isClicked(mx, my, cx, cy + 290, 180, 50)) {
-        this.state = "MENU";
-      }
     } else if (this.state === "GET_READY") {
       this.state = "PLAYING";
       this.playSFX("start");
@@ -418,7 +466,7 @@ export class Game {
       this.bird.flap();
     } else if (this.state === "GAMEOVER") {
       if (Date.now() - this.deathTime > 600) {
-        // Shrunk button widths so they don't overlap on small screens
+        // Restart / Quit buttons
         if (this.isClicked(mx, my, cx + 110, cy + 160, 180, 60))
           this.prepareRound();
         if (this.isClicked(mx, my, cx - 110, cy + 160, 180, 60))
@@ -703,73 +751,6 @@ export class Game {
     this.ctx.restore();
   }
 
-  // --- NEW: ACHIEVEMENTS MENU PANEL ---
-  drawAchievementsPanel() {
-    let cx = CONFIG.WIDTH / 2;
-    let cy = CONFIG.HEIGHT / 2;
-    this.ctx.fillStyle = "rgba(0, 0, 0, 0.85)";
-    this.ctx.fillRect(0, 0, CONFIG.WIDTH, CONFIG.HEIGHT);
-
-    this.ctx.fillStyle = "#ded895";
-    this.ctx.strokeStyle = "#543847";
-    this.ctx.lineWidth = 6;
-    if (this.ctx.roundRect) {
-      this.ctx.beginPath();
-      // Made the box much taller and moved it up to fit 8 items
-      this.ctx.roundRect(cx - 190, cy - 330, 380, 680, 20);
-      this.ctx.fill();
-      this.ctx.stroke();
-    }
-
-    this.drawText("ACHIEVEMENTS", 36, cy - 270, cx, "center", "#ffce00");
-
-    let startY = cy - 220; // Start the list higher up
-    CONFIG.ACHIEVEMENTS.forEach((ach, index) => {
-      let ax = cx - 170;
-      let ay = startY + index * 60; // Tighter vertical stacking
-
-      let isUnlocked = this.unlockedAchievements.includes(ach.id);
-
-      this.ctx.fillStyle = isUnlocked ? "#c2b280" : "rgba(0,0,0,0.1)";
-      this.ctx.strokeStyle = "#543847";
-      this.ctx.lineWidth = 2;
-      this.ctx.fillRect(ax, ay, 340, 50);
-      this.ctx.strokeRect(ax, ay, 340, 50);
-
-      // Icon box
-      this.ctx.fillStyle = isUnlocked ? "#55aa55" : "#888";
-      this.ctx.fillRect(ax + 5, ay + 5, 40, 40);
-      this.drawText(
-        isUnlocked ? "✔" : "🔒",
-        20,
-        ay + 32,
-        ax + 25,
-        "center",
-        "white",
-      );
-
-      // Text
-      this.drawText(
-        isUnlocked ? ach.name : "???",
-        16,
-        ay + 20,
-        ax + 55,
-        "left",
-        isUnlocked ? "white" : "#555",
-      );
-      this.ctx.font = `11px Courier`;
-      this.ctx.fillStyle = isUnlocked ? "#543847" : "#555";
-      this.ctx.fillText(
-        isUnlocked ? ach.desc : "Keep playing to unlock.",
-        ax + 55,
-        ay + 38,
-      );
-    });
-
-    // Moved the BACK button safely to the bottom
-    this.drawButton("BACK", cx, cy + 290, 180, 50, "#d1685a");
-  }
-
   drawSettingsPanel() {
     let cx = CONFIG.WIDTH / 2;
     let cy = CONFIG.HEIGHT / 2;
@@ -982,12 +963,33 @@ export class Game {
         }
       });
       this.pipes = this.pipes.filter((p) => !p.markedForDeletion);
+
+      // Inside your PLAYING state in loop()
+
+      this.coinsList.forEach((c) => {
+        c.update(this.currentSpeed);
+
+        // Simple Circle Collision logic
+        let dist = Math.hypot(this.bird.x - c.x, this.bird.y - c.y);
+
+        // If bird radius + coin radius overlap, collect it!
+        if (dist < this.bird.size / 2 - 10 + c.radius && !c.markedForDeletion) {
+          c.markedForDeletion = true;
+          this.coins++;
+          this.playSFX("coin"); // Ding!
+        }
+      });
+
+      // Clean up collected or off-screen coins
+      this.coinsList = this.coinsList.filter((c) => !c.markedForDeletion);
     }
 
     if (this.state === "GAMEOVER") this.bird.update();
 
     if (this.state === "PLAYING" || this.state === "GAMEOVER") {
       this.pipes.forEach((p) => p.draw(this.ctx));
+      // Draw coins
+      this.coinsList.forEach((c) => c.draw(this.ctx));
     }
 
     this.drawGround();
@@ -1017,20 +1019,25 @@ export class Game {
     if (this.state === "MENU") {
       this.drawText(CONFIG.TITLE, 54, cy - 200, cx, "center", "#ffce00");
 
-      this.drawButton("<", cx - 120, cy - 90, 50, 50, "#ded895", "#543847");
-      this.drawButton(">", cx + 120, cy - 90, 50, 50, "#ded895", "#543847");
-      let currentWing = this.wingStyles[this.wingIndex].toUpperCase();
-      this.drawText(currentWing, 22, cy - 20, cx, "center", "white");
+      // 4 Buttons, perfectly stacked!
+      this.drawButton("PLAY", cx, cy + 10, 200, 50, "#55aa55", "white", true);
+      this.drawButton("ACHIEVEMENTS", cx, cy + 75, 200, 50, "#ff7a00");
+      this.drawButton("CHARACTER", cx, cy + 140, 200, 50, "#4287f5");
+      this.drawButton("LEADERBOARD", cx, cy + 205, 200, 50, "#d1685a"); // New!
 
-      // Added 'true' at the end to make the PLAY button pulse!
-      this.drawButton("PLAY", cx, cy + 50, 200, 60, "#55aa55", "white", true);
-      this.drawButton("SETTINGS", cx, cy + 120, 200, 60);
-      this.drawButton("ACHIEVEMENTS", cx, cy + 190, 200, 60, "#ff7a00");
-      this.drawButton("CHARACTER", cx, cy + 260, 200, 60, "#4287f5");
+      // --- NEW: DRAW VERSION NUMBER ---
+      // Draws small, slightly transparent text in the bottom-right corner!
+      this.drawText(
+        CONFIG.VERSION,
+        16,
+        CONFIG.HEIGHT - 15,
+        CONFIG.WIDTH - 15,
+        "right",
+        "rgba(255, 255, 255, 0.7)",
+      );
     }
 
     if (this.state === "SETTINGS") this.drawSettingsPanel();
-    if (this.state === "ACHIEVEMENTS") this.drawAchievementsPanel();
 
     if (this.state === "GET_READY") {
       this.drawText("GET READY!", 54, cy - 100, cx, "center", "#ff7a00");
@@ -1040,6 +1047,15 @@ export class Game {
     if (this.state === "PLAYING") {
       this.drawText(this.score.toString(), 48, 80);
       this.drawText(`LEVEL ${this.level}`, 22, CONFIG.HEIGHT - 30);
+      // DRAW WALLET BALANCE (Top Right)
+      this.drawText(
+        `💰 ${this.coins}`,
+        24,
+        40,
+        CONFIG.WIDTH - 20,
+        "right",
+        "#FFD700",
+      );
     }
 
     if (this.state === "GAMEOVER") {

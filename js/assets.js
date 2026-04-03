@@ -8,7 +8,7 @@ export const Assets = { images: {}, audio: {} };
 
 export function loadAssets(callback) {
   let loaded = 0;
-  let total = CONFIG.BACKGROUNDS.length + 2 + Object.keys(CONFIG.SOUNDS).length;
+  let total = CONFIG.BACKGROUNDS.length + 3 + Object.keys(CONFIG.SOUNDS).length;
   let hasStartedGame = false;
 
   const checkLoad = () => {
@@ -50,6 +50,12 @@ export function loadAssets(callback) {
   Assets.images.pipes.onload = () => { Assets.images.pipes.onload = null; checkLoad(); };
   Assets.images.pipes.onerror = () => { Assets.images.pipes.onerror = null; checkLoad(); };
   Assets.images.pipes.src = CONFIG.PIPE_SHEET;
+
+  // --- ADD THIS NEW BLOCK: Load Coin ---
+  Assets.images.coin = new Image();
+  Assets.images.coin.onload = () => { Assets.images.coin.onload = null; checkLoad(); };
+  Assets.images.coin.onerror = () => { Assets.images.coin.onerror = null; checkLoad(); };
+  Assets.images.coin.src = CONFIG.COIN_IMG;
 
   // Load Audio (Bulletproof Web Audio API loader)
   for (let [key, src] of Object.entries(CONFIG.SOUNDS)) {

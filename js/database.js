@@ -1,13 +1,19 @@
 // Import the functions you need from the SDKs you need
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-app.js";
-import { getAnalytics } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-analytics.js";
-// TODO: Add SDKs for Firebase products that you want to use
-// https://firebase.google.com/docs/web/setup#available-libraries
+import {
+  getFirestore,
+  doc,
+  setDoc,
+  getDoc,
+  collection,
+  query,
+  orderBy,
+  limit,
+  getDocs,
+} from "https://www.gstatic.com/firebasejs/12.11.0/firebase-firestore.js";
 
-// Your web app's Firebase configuration
-// For Firebase JS SDK v7.20.0 and later, measurementId is optional
 const firebaseConfig = {
-  apiKey: "AIzaSyCXwbtaELHu_09qzxYkeBuc33Qh0wTr-Uw",
+  apiKey: "AIzaSyCXwbtaELHu_09qzxYkeBuc33Qh0wTr-Uw", // Put your real key back here
   authDomain: "flappy-binnie.firebaseapp.com",
   projectId: "flappy-binnie",
   storageBucket: "flappy-binnie.firebasestorage.app",
@@ -18,4 +24,56 @@ const firebaseConfig = {
 
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
-const analytics = getAnalytics(app);
+
+// 2. Initialize Firestore and EXPORT it
+export const db = getFirestore(app);
+
+// 3. Create and EXPORT the save function so game.js can see it
+export async function savePlayerData(
+  username,
+  highScore,
+  coins,
+  unlockedAchievements,
+) {
+  if (!username) return;
+
+  try {
+    const userRef = doc(db, "users", username);
+    await setDoc(
+      userRef,
+      {
+        username: username,
+        highScore: highScore,
+        coins: coins,
+        unlockedAchievements: unlockedAchievements,
+        lastPlayed: new Date(),
+      },
+      { merge: true },
+    );
+
+    console.log("Data synced to Firebase!");
+  } catch (error) {
+    console.error("Firebase Sync Error:", error);
+  }
+}
+
+// 4. Fetch Leaderboard Data
+export async function getLeaderboardData(topN = 50) {
+  try {
+    const usersRef = collection(db, "users");
+    // Query: Sort by highScore (descending) and limit to topN
+    const q = query(usersRef, orderBy("highScore", "desc"), limit(topN));
+
+    const querySnapshot = await getDocs(q);
+    let leaderboard = [];
+
+    querySnapshot.forEach((doc) => {
+      leaderboard.push(doc.data());
+    });
+
+    return leaderboard;
+  } catch (error) {
+    console.error("Error fetching leaderboard:", error);
+    return [];
+  }
+}

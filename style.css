@@ -29,23 +29,191 @@ body {
     -webkit-user-select: none;
 }
 
+/* --- CUSTOM MODAL UI --- */
+.modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100dvh;
+    background: rgba(0, 0, 0, 0.85);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 300;
+    /* Stays above the canvas and sidebar */
+}
+
+.modal-overlay.hidden {
+    display: none;
+}
+
+.modal-content {
+    background: #ded895;
+    border: 6px solid #543847;
+    border-radius: 15px;
+    padding: 30px;
+    text-align: center;
+    width: 80%;
+    max-width: 350px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.8);
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+
+.modal-content h2 {
+    color: #ff7a00;
+    margin: 0;
+    text-shadow: 2px 2px 0px #fff;
+}
+
+.modal-content p {
+    color: #543847;
+    font-size: 14px;
+    font-weight: bold;
+    margin: 0;
+}
+
+#modal-username-input {
+    padding: 12px;
+    font-size: 16px;
+    font-family: 'Courier New', Courier, monospace;
+    font-weight: bold;
+    border: 3px solid #543847;
+    border-radius: 8px;
+    text-align: center;
+    outline: none;
+}
+
+.text-btn {
+    background: none;
+    border: none;
+    color: #d1685a;
+    font-family: 'Courier New', Courier, monospace;
+    font-weight: bold;
+    text-decoration: underline;
+    cursor: pointer;
+    margin-top: 5px;
+}
+
+.text-btn:hover {
+    color: #ff0000;
+}
+
+/* --- SIDEBAR UI --- */
+.hamburger {
+    position: absolute;
+    top: 15px;
+    left: 15px;
+    /* Moved to the top-left corner */
+    font-size: 36px;
+    color: #ded895;
+    text-shadow: 2px 2px 0px #543847;
+    cursor: pointer;
+    z-index: 50;
+    transition: transform 0.2s;
+}
+
+.hamburger:active {
+    transform: scale(0.9);
+}
+
+.sidebar {
+    position: absolute;
+    top: 0;
+    left: -100%;
+    /* Hidden off the LEFT side of the screen */
+    width: 280px;
+    height: 100dvh;
+    background: #ded895;
+    border-right: 6px solid #543847;
+    /* Border moved to the right edge */
+    box-shadow: 5px 0 20px rgba(0, 0, 0, 0.5);
+    /* Shadow reversed to push right */
+    transition: left 0.3s cubic-bezier(0.175, 0.885, 0.32, 1);
+    /* Transition flipped to left */
+    z-index: 200;
+    padding: 20px;
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+}
+
+.sidebar.open {
+    left: 0;
+    /* Slides in perfectly from the left! */
+}
+
+.sidebar h2 {
+    color: #ff7a00;
+    text-shadow: 1px 1px 0px #fff;
+    margin: 10px 0;
+    font-size: 22px;
+}
+
+.close-btn {
+    align-self: flex-end;
+    font-size: 32px;
+    background: none;
+    border: none;
+    color: #d1685a;
+    font-weight: bold;
+    cursor: pointer;
+    margin-bottom: 10px;
+}
+
+.sidebar-section {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+#username-input {
+    padding: 10px;
+    font-family: 'Courier New', Courier, monospace;
+    font-weight: bold;
+    border: 3px solid #543847;
+    border-radius: 8px;
+    outline: none;
+}
+
+.status-text {
+    font-size: 12px;
+    color: #543847;
+    margin-top: 5px;
+    font-weight: bold;
+}
+
+.settings-grid {
+    gap: 15px;
+}
+
+.vol-control {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-weight: bold;
+    color: #543847;
+}
+
 #gameCanvas {
     background-color: #87CEEB;
-    
+
     /* Ensure the canvas never grows larger than the browser window */
     max-width: 100%;
     max-height: 100%;
-    
+
     /* Let the browser determine the physical display size */
     width: auto;
     height: auto;
-    
+
     /* THE MAGIC TRICK: This forces the canvas to scale up or down 
        like a movie playing on a TV, preserving the exact aspect ratio 
        without stretching or squishing your pixel art! */
     object-fit: cover;
-    
-    image-rendering: pixelated; 
+
+    image-rendering: pixelated;
     box-shadow: 0 0 20px rgba(0, 0, 0, 0.8);
 }
 
@@ -73,15 +241,19 @@ body {
 }
 
 .char-panel {
-    box-sizing: border-box; /* THE MAGIC FIX: Keeps padding inside the width */
+    box-sizing: border-box;
+    /* THE MAGIC FIX: Keeps padding inside the width */
     background: #ded895;
-    border: 4px solid #543847; /* Thinned from 6px to save space */
+    border: 4px solid #543847;
+    /* Thinned from 6px to save space */
     border-radius: 15px;
-    padding: 15px; /* Reduced from 20px to fit small phones better */
-    width: 95%; /* Now perfectly respects the screen width */
+    padding: 15px;
+    /* Reduced from 20px to fit small phones better */
+    width: 95%;
+    /* Now perfectly respects the screen width */
     max-width: 380px;
-    max-height: 90dvh; 
-    overflow-y: auto;  
+    max-height: 90dvh;
+    overflow-y: auto;
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -92,7 +264,8 @@ body {
     margin: 0 0 10px 0;
     color: #ff7a00;
     text-shadow: 2px 2px 0px #fff;
-    font-size: 24px; /* Slightly smaller for mobile */
+    font-size: 24px;
+    /* Slightly smaller for mobile */
 }
 
 
@@ -104,15 +277,16 @@ body {
     position: relative;
     width: 100%;
     /* Reduced from 300px to 220px to prevent vertical screen overflow */
-    max-width: 220px; 
-    aspect-ratio: 1 / 1; 
+    max-width: 220px;
+    aspect-ratio: 1 / 1;
     height: auto;
     background: #333;
     border-radius: 10px;
     overflow: hidden;
     cursor: grab;
     border: 4px solid #543847;
-    margin: 0 auto; /* Centers it nicely */
+    margin: 0 auto;
+    /* Centers it nicely */
 }
 
 .crop-overlay {
@@ -126,7 +300,7 @@ body {
     border-radius: 50%;
     border: 4px dashed white;
     /* Shrunk the circle to fit the new container */
-    width: 180px; 
+    width: 180px;
     height: 180px;
     margin: auto;
 }
@@ -159,7 +333,8 @@ body {
 /* Force button groups to wrap if the screen is too narrow */
 .btn-group {
     display: flex;
-    flex-wrap: wrap; /* Allows buttons to stack if they run out of room */
+    flex-wrap: wrap;
+    /* Allows buttons to stack if they run out of room */
     gap: 10px;
     width: 100%;
     justify-content: center;
@@ -176,7 +351,8 @@ body {
 .danger-btn {
     font-family: 'Courier New', Courier, monospace;
     font-weight: bold;
-    font-size: 14px; /* Shrunk slightly from 16px */
+    font-size: 14px;
+    /* Shrunk slightly from 16px */
     padding: 10px 12px;
     border-radius: 8px;
     border: 3px solid #543847;
@@ -184,8 +360,10 @@ body {
     text-align: center;
     color: white;
     transition: transform 0.1s;
-    flex: 1 1 auto; /* Allows them to shrink gracefully */
-    white-space: nowrap; /* Prevents text from breaking weirdly */
+    flex: 1 1 auto;
+    /* Allows them to shrink gracefully */
+    white-space: nowrap;
+    /* Prevents text from breaking weirdly */
 }
 
 .action-btn:active,
@@ -227,7 +405,8 @@ body {
 
 .wing-btn-group {
     display: flex;
-    flex-wrap: wrap; /* Crucial for phones with narrow screens */
+    flex-wrap: wrap;
+    /* Crucial for phones with narrow screens */
     justify-content: center;
     gap: 8px;
 }
@@ -270,7 +449,7 @@ body {
     justify-content: space-between;
     z-index: 10000;
     color: white;
-    box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
     /* Bouncy slide-in animation */
     transition: transform 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
 }
@@ -326,4 +505,234 @@ body {
     font-size: 16px;
     cursor: pointer;
     padding: 0 5px;
+}
+
+/* --- CHARACTER SHOP UI --- */
+.shop-content {
+    background: #ded895;
+    border: 6px solid #543847;
+    border-radius: 15px;
+    padding: 20px;
+    width: 90%;
+    max-width: 450px;
+    max-height: 85dvh;
+    overflow-y: auto;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.8);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.wallet-display {
+    background: #543847;
+    color: #FFD700;
+    padding: 10px 20px;
+    border-radius: 10px;
+    font-family: 'Courier New', Courier, monospace;
+    font-weight: bold;
+    font-size: 20px;
+    margin-bottom: 15px;
+    width: 100%;
+    text-align: center;
+    box-sizing: border-box;
+}
+
+.shop-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+    width: 100%;
+}
+
+.shop-item {
+    background: #fff;
+    border: 3px solid #543847;
+    border-radius: 8px;
+    padding: 15px 10px;
+    text-align: center;
+    cursor: pointer;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 80px;
+    transition: transform 0.1s;
+}
+
+.shop-item:active {
+    transform: scale(0.95);
+}
+
+/* The different states of the buttons */
+.shop-item.locked {
+    background: #a0a0a0;
+    color: #555;
+    cursor: not-allowed;
+    border-color: #777;
+}
+
+.shop-item.equipped {
+    background: #55aa55;
+    color: white;
+    border-color: #fff;
+    box-shadow: 0 0 10px #55aa55;
+}
+
+.shop-item span {
+    font-weight: bold;
+    font-family: 'Courier New', Courier, monospace;
+    font-size: 16px;
+}
+
+.shop-item small {
+    font-size: 11px;
+    margin-top: 5px;
+    font-family: Arial, sans-serif;
+}
+
+/* --- ACHIEVEMENTS UI --- */
+.achievements-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    width: 100%;
+}
+
+.achievement-item {
+    background: #fff;
+    border: 3px solid #543847;
+    border-radius: 8px;
+    padding: 10px;
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    text-align: left;
+}
+
+.achievement-item.locked {
+    background: #a0a0a0;
+    color: #555;
+    border-color: #777;
+}
+
+.ach-icon {
+    width: 40px;
+    height: 40px;
+    min-width: 40px;
+    border-radius: 8px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-size: 20px;
+    font-weight: bold;
+    border: 2px solid rgba(0, 0, 0, 0.2);
+}
+
+.achievement-item.locked .ach-icon {
+    background: #888;
+    color: #555;
+}
+
+.achievement-item:not(.locked) .ach-icon {
+    background: #55aa55;
+    color: white;
+}
+
+.ach-text {
+    display: flex;
+    flex-direction: column;
+}
+
+.ach-text span {
+    font-weight: bold;
+    font-family: 'Courier New', Courier, monospace;
+    font-size: 15px;
+}
+
+.ach-text small {
+    font-size: 11px;
+    font-family: Arial, sans-serif;
+    margin-top: 3px;
+}
+
+/* --- RIGHT SIDEBAR: LEADERBOARD --- */
+.right-sidebar {
+    position: fixed;
+    top: 0;
+    right: -100%;
+    /* Hidden off-screen to the right */
+    width: 85%;
+    max-width: 350px;
+    height: 100dvh;
+    background: #ded895;
+    border-left: 6px solid #543847;
+    box-shadow: -5px 0 15px rgba(0, 0, 0, 0.5);
+    transition: right 0.3s ease-in-out;
+    z-index: 250;
+    display: flex;
+    flex-direction: column;
+}
+
+.right-sidebar.open {
+    right: 0;
+    /* Slides in */
+}
+
+.sidebar-header {
+    background: #543847;
+    padding: 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 4px solid #3a2630;
+}
+
+.leaderboard-list {
+    padding: 15px;
+    overflow-y: auto;
+    flex-grow: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.leaderboard-item {
+    background: #fff;
+    border: 3px solid #543847;
+    border-radius: 8px;
+    padding: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-weight: bold;
+    font-family: 'Courier New', Courier, monospace;
+    font-size: 16px;
+}
+
+.lb-rank {
+    width: 35px;
+    color: #d1685a;
+    font-size: 18px;
+}
+
+.lb-name {
+    flex-grow: 1;
+    text-align: left;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: #543847;
+    padding-right: 10px;
+}
+
+.lb-score {
+    color: #55aa55;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 18px;
+}
+
+.lb-crown {
+    font-size: 20px;
 }

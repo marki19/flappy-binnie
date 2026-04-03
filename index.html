@@ -22,7 +22,107 @@
     />
   </head>
   <body>
+    <div id="login-modal" class="modal-overlay hidden">
+      <div class="modal-content">
+        <h2>WELCOME PILOT</h2>
+        <p>Enter a username to save your coins and high scores to the cloud!</p>
+        <input
+          type="text"
+          id="modal-username-input"
+          placeholder="Enter Username..."
+        />
+        <button id="modal-login-btn" class="action-btn">START FLYING</button>
+        <button id="modal-guest-btn" class="text-btn">Play as Guest</button>
+      </div>
+    </div>
+
+    <div id="shop-modal" class="modal-overlay hidden">
+      <div class="shop-content">
+        <button id="close-shop" class="close-btn">×</button>
+        <h2 style="color: #4287f5">CHARACTER SHOP</h2>
+
+        <div class="wallet-display">
+          WALLET: <span id="shop-coins">0</span> 💰
+        </div>
+
+        <p style="font-weight: bold; color: #543847; margin-bottom: 30px">
+          Wings
+        </p>
+        <div class="shop-grid" id="shop-grid"></div>
+
+        <hr style="width: 100%; border: 2px solid #543847; margin: 15px 0" />
+
+        <p style="font-weight: bold; color: #ff7a00; margin-bottom: 5px">
+          PREMIUM & SPECIAL
+        </p>
+        <div class="shop-grid" id="premium-grid"></div>
+      </div>
+    </div>
+
+    <div id="achievements-modal" class="modal-overlay hidden">
+      <div class="shop-content">
+        <button id="close-achievements" class="close-btn">×</button>
+        <h2 style="color: #ff7a00">ACHIEVEMENTS</h2>
+
+        <div
+          class="wallet-display"
+          style="background: #c2b280; color: #543847; font-size: 16px"
+        >
+          UNLOCKED: <span id="ach-progress">0</span> /
+          <span id="ach-total">18</span>
+        </div>
+
+        <div class="achievements-list" id="achievements-list"></div>
+      </div>
+    </div>
+
     <canvas id="gameCanvas"></canvas>
+
+    <div id="hamburger-btn" class="hamburger">☰</div>
+
+    <div id="sidebar" class="sidebar">
+      <button id="close-sidebar" class="close-btn">×</button>
+
+      <h2>PROFILE</h2>
+      <div class="sidebar-section">
+        <input
+          type="text"
+          id="username-input"
+          placeholder="Enter Username..."
+        />
+        <button id="login-btn" class="action-btn">LOAD DATA</button>
+        <p id="login-status" class="status-text">Playing as: Guest</p>
+      </div>
+
+      <div id="leaderboard-sidebar" class="right-sidebar">
+        <div class="sidebar-header">
+          <h2 style="color: #ffce00; margin: 0; text-shadow: 2px 2px 0px #000">
+            LEADERBOARD
+          </h2>
+          <button id="close-leaderboard" class="close-btn">×</button>
+        </div>
+        <div id="leaderboard-list" class="leaderboard-list"></div>
+      </div>
+
+      <hr />
+
+      <h2>SETTINGS</h2>
+      <div class="sidebar-section settings-grid">
+        <button id="toggle-bgm" class="action-btn">🎵 Music: ON</button>
+        <button id="toggle-sfx" class="action-btn">🔊 SFX: ON</button>
+        <div class="vol-control">
+          <span>Vol:</span>
+          <input
+            type="range"
+            id="volume-slider"
+            min="0"
+            max="1"
+            step="0.1"
+            value="1"
+          />
+        </div>
+      </div>
+    </div>
 
     <div id="installToast" class="install-toast">
       <div class="toast-content">
@@ -77,6 +177,6 @@
     </div>
     <script type="module" src="js/character.js"></script>
     <script type="module" src="js/main.js"></script>
-    <script type="module" src="database.js"></script>
+    <script type="module" src="js/database.js"></script>
   </body>
 </html>

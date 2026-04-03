@@ -1,4 +1,4 @@
-import { CONFIG } from "./config.js";
+import { CONFIG, BIRD_DESIGNS } from "./config.js";
 import { Assets } from "./assets.js";
 
 // --- OPTIMIZATION STEP 1: WING CACHE ---
@@ -15,7 +15,7 @@ export class Bird {
     this.gravity = CONFIG.GRAVITY;
 
     // --- OPTIMIZATION STEP 2: OBJECT POOLING ---
-    // Instead of creating and destroying arrays constantly, we create exactly 25 objects 
+    // Instead of creating and destroying arrays constantly, we create exactly 25 objects
     // ONCE when the game starts, and just recycle them. No more Garbage Collection lag!
     this.maxTrailLength = 25;
     this.trail = Array.from({ length: this.maxTrailLength }, () => ({
@@ -72,21 +72,23 @@ export class Bird {
 
     ctx.save();
     ctx.lineWidth = 4;
-    
-    // Instead of looping to change alpha every segment (very slow), 
+
+    // Instead of looping to change alpha every segment (very slow),
     // we use a single semi-transparent path for the entire trail (super fast!)
-    ctx.strokeStyle = "rgba(255, 255, 255, 0.4)"; 
+    ctx.strokeStyle = "rgba(255, 255, 255, 0.4)";
     ctx.setLineDash([10, 5]);
     ctx.lineCap = "round";
 
     ctx.beginPath();
-    
+
     // Start drawing from the most recently placed trail point
-    let startIdx = (this.trailIndex - 1 + this.maxTrailLength) % this.maxTrailLength;
+    let startIdx =
+      (this.trailIndex - 1 + this.maxTrailLength) % this.maxTrailLength;
     ctx.moveTo(this.trail[startIdx].x, this.trail[startIdx].y);
 
     for (let i = 1; i < activeCount; i++) {
-      let idx = (this.trailIndex - 1 - i + this.maxTrailLength) % this.maxTrailLength;
+      let idx =
+        (this.trailIndex - 1 - i + this.maxTrailLength) % this.maxTrailLength;
       if (this.trail[idx].active) {
         ctx.lineTo(this.trail[idx].x, this.trail[idx].y);
       }
@@ -96,35 +98,55 @@ export class Bird {
     ctx.restore();
   }
 
-  drawRetroWing(ctx, style, isFlapping) {
+  drawRetroWing(ctx, style, isFlapping, hideBody = false) {
     let flapState = isFlapping ? "flap" : "idle";
+    let bodyState = hideBody ? "nobody" : "body"; // Update the cache key!
     let cacheKey = `${style}_${flapState}`;
 
-    // If we haven't drawn this wing before, draw it to an invisible canvas and save it
     if (!wingCache[cacheKey]) {
       const wingScale = 1.2;
       const pixelSize = 7 * wingScale;
-      const designs = {
-        classic: { palette: { W: "#FFFFFF", G: "#DDDDDD", B: "#543847" }, art: ["  BB    ", " BGWBB  ", "BWWWGBB ", "BWWWWWB ", " BBWWWB ", "   BWWB ", "    BBB "] },
-        bat: { palette: { P: "#663399", D: "#330066", B: "#111111" }, art: ["  B     ", " BDB    ", "BPPBB B ", "BPPPPBDB", " BPPPPPB", "  BBDBB ", "    B   "] },
-        mecha: { palette: { O: "#FF7A00", M: "#CCCCCC", D: "#888888", B: "#222222" }, art: ["   BBB  ", "  BMMMB ", " BOOOOMB", " BOOOOMB", " BBMMMB ", "   BBB  "] },
-        fairy: { palette: { P: "#FFB6C1", C: "#00FFFF", B: "#FF69B4" }, art: ["   BB   ", "  BPCB  ", " BPPPCB ", " BPPPCB ", "  BPCB  ", "   BB   "] },
-        demon: { palette: { R: "#FF0000", D: "#8B0000", B: "#000000" }, art: ["B       ", "BRB     ", "BRRBB B ", "BRRRRBDB", " BRRRRRB", "  BBDRB ", "    B   "] },
-        angel: { palette: { G: "#FFD700", W: "#FFFFFF", B: "#DAA520" }, art: ["  BB    ", " BGWBB  ", "BWWWGBB ", "BWWWWWB ", " BBWWWB ", "  BWWWB ", "   BBB  "] },
-        dragon: { palette: { G: "#32CD32", Y: "#FFD700", B: "#006400" }, art: ["  B     ", " BGB    ", "BGYBB B ", "BGYYYBGB", " BGYYYYB", "  BBGBB ", "    B   "] },
-        butterfly: { palette: { M: "#FF00FF", C: "#00FFFF", B: "#000080" }, art: [" B   B  ", " BMBMB  ", "BMMCMMB ", "BMMMMMB ", " BMBMB  ", "  BBB   "] },
-        bone: { palette: { W: "#F5F5F5", G: "#A9A9A9", B: "#2F4F4F" }, art: ["  BB    ", " BWWBB  ", "BWBBWWB ", "BWWWWWWB", " BBWWBB ", "   BB   "] },
-        crystal: { palette: { C: "#00FFFF", L: "#E0FFFF", B: "#008B8B" }, art: ["   B    ", "  BCCB  ", " BCCLCB ", "BCCCCCB ", " BCCLCB ", "  BCCB  ", "   B    "] },
-      };
 
-      const wingData = designs[style] || designs["classic"];
-      
+      // Grab the blueprint from config instead!
+      const wingData = BIRD_DESIGNS[style] || BIRD_DESIGNS["classic"];
+
       let oc = document.createElement("canvas");
-      oc.width = 150; // Ensure canvas is large enough for the rotated wing
+      oc.width = 150;
       oc.height = 150;
       let octx = oc.getContext("2d");
-      
-      octx.translate(75, 75); // Move to center of offscreen canvas
+
+      octx.translate(75, 75);
+
+      // --- DRAW PIXEL-ART ROUNDED BIRD BODY ---
+      if (!hideBody) {
+        let colors = Object.values(wingData.palette);
+        let mainColor = colors[1] || "#FFD700";
+        let eyeColor = colors[2] || "#000000";
+
+        // 1. Black Outline (Stair-stepped pixel corners)
+        octx.fillStyle = "#000";
+        octx.fillRect(-15, -25, 30, 50); // Top & Bottom edges
+        octx.fillRect(-25, -15, 50, 30); // Left & Right edges
+        octx.fillRect(-20, -20, 40, 40); // Corner fillers
+
+        // 2. Main Body Color (Matching the outline shape but smaller)
+        octx.fillStyle = mainColor;
+        octx.fillRect(-10, -20, 20, 40);
+        octx.fillRect(-20, -10, 40, 20);
+        octx.fillRect(-15, -15, 30, 30);
+
+        // 3. Pixel Eye (White background, colored pupil)
+        octx.fillStyle = "white";
+        octx.fillRect(4, -16, 16, 16);
+        octx.fillStyle = eyeColor;
+        octx.fillRect(12, -12, 8, 8);
+
+        // 4. Pixel Beak (With a black outline to match the body)
+        octx.fillStyle = "#000";
+        octx.fillRect(18, -2, 24, 14); // Beak Outline
+        octx.fillStyle = "#FF8C00";
+        octx.fillRect(20, 0, 20, 10); // Inside Beak
+      }
       let flapAngle = isFlapping ? Math.PI / 4 : -Math.PI / 6;
       octx.rotate(flapAngle);
 
@@ -140,13 +162,11 @@ export class Bird {
           }
         }
       }
-      wingCache[cacheKey] = oc; // Save it to the cache!
+      wingCache[cacheKey] = oc;
     }
 
-    // Instantly draw the cached image (GPU accelerated)
     ctx.save();
     ctx.translate(-this.size * 0.15, 0);
-    // Draw offset by 75 to account for the offscreen canvas center
     ctx.drawImage(wingCache[cacheKey], -75, -75);
     ctx.restore();
   }
@@ -163,23 +183,13 @@ export class Bird {
     ctx.imageSmoothingEnabled = false;
 
     let wingStyle = localStorage.getItem("flappyBinnieWingStyle") || "classic";
+    let customFace = localStorage.getItem("flappyBinnieCustomFace");
     let isFlapping = this.velocity < -2;
     if (this.velocity === 0) isFlapping = Math.sin(Date.now() / 100) > 0;
 
-    this.drawRetroWing(ctx, wingStyle, isFlapping);
-
-    let customFace = localStorage.getItem("flappyBinnieCustomFace");
-    if (
-      Assets.images.bird &&
-      Assets.images.bird.complete &&
-      Assets.images.bird.naturalWidth !== 0
-    ) {
-      if (customFace) {
-        ctx.beginPath();
-        ctx.arc(0, 0, this.size / 2, 0, Math.PI * 2);
-        ctx.closePath();
-        ctx.clip();
-      }
+    // RULE 1: If they have a Custom Camera Face, draw that!
+    if (customFace && Assets.images.bird && Assets.images.bird.complete) {
+      // We deleted the ctx.clip() here so the wings can finally escape the circle!
       ctx.drawImage(
         Assets.images.bird,
         -this.size / 2,
@@ -187,11 +197,27 @@ export class Bird {
         this.size,
         this.size,
       );
-    } else {
-      ctx.fillStyle = "yellow";
-      ctx.beginPath();
-      ctx.arc(0, 0, this.size / 2, 0, Math.PI * 2);
-      ctx.fill();
+      // Pass 'true' at the end to hide the yellow body!
+      this.drawRetroWing(ctx, "classic", isFlapping, true);
+    }
+
+    // RULE 2: If they explicitly equipped Ribinie (and unlocked it), draw the Ribinie PNG!
+    else if (
+      wingStyle === "ribinie" &&
+      Assets.images.bird &&
+      Assets.images.bird.complete
+    ) {
+      ctx.drawImage(
+        Assets.images.bird,
+        -this.size / 2,
+        -this.size / 2,
+        this.size,
+        this.size,
+      );
+    }
+    // RULE 3: Draw the 100% Coded Pixel Art Bird!
+    else {
+      this.drawRetroWing(ctx, wingStyle, isFlapping);
     }
 
     ctx.restore();
@@ -228,7 +254,7 @@ export class Pipe {
       let tileH = img.height / 4;
       let scaleMult = this.w / tileW;
       let propH = tileH * scaleMult;
-      
+
       // 1. Math.floor prevents the sides of the pipes from looking blurry!
       let drawX = Math.floor(this.x);
       let drawY = Math.floor(this.y);
@@ -240,11 +266,11 @@ export class Pipe {
         ctx.scale(1, -1);
         ctx.translate(-(drawX + drawW / 2), -drawY);
       }
-      
-      // 2. THE FIX: We subtract 2 pixels from the bottom pipe's bodyY 
+
+      // 2. THE FIX: We subtract 2 pixels from the bottom pipe's bodyY
       // so it tucks securely underneath the cap image!
       let bodyY = this.isTop ? drawY : drawY + propH - 2;
-      
+
       // Draw the Body First
       ctx.drawImage(
         img,
@@ -257,7 +283,7 @@ export class Pipe {
         drawW,
         CONFIG.HEIGHT,
       );
-      
+
       // Draw the Cap Second (Overlapping the body)
       ctx.drawImage(
         img,
@@ -281,5 +307,70 @@ export class Pipe {
     return this.isTop
       ? { x: this.x, y: this.y - this.h, w: this.w, h: this.h }
       : { x: this.x, y: this.y, w: this.w, h: this.h };
+  }
+}
+
+export class Coin {
+  constructor(x, y) {
+    this.x = x;
+    this.y = y;
+    this.radius = 38;
+    this.markedForDeletion = false;
+
+    // Randomize the starting spin and bob cycle so they don't all look identical
+    this.timeOffset = Math.random() * 100;
+  }
+
+  update(speed) {
+    this.x -= speed;
+    if (this.x < -50) this.markedForDeletion = true; // Delete when off screen
+  }
+
+  draw(ctx) {
+    let img = Assets.images.coin;
+    let time = Date.now() / 150 + this.timeOffset;
+
+    // 1. Bobbing motion (up and down)
+    let bobY = this.y + Math.sin(time * 0.5) * 10;
+
+    // 2. Fake 3D Spin (squishing the width back and forth)
+    let scaleX = Math.cos(time);
+
+    ctx.save();
+    ctx.translate(this.x, bobY);
+    ctx.scale(scaleX, 1); // This squishes the image to fake the 3D rotation
+
+    if (img && img.complete && img.naturalWidth !== 0) {
+      // Draw the graphic
+      ctx.drawImage(
+        img,
+        -this.radius,
+        -this.radius,
+        this.radius * 2,
+        this.radius * 2,
+      );
+    } else {
+      // Fallback: Draw a yellow circle if the image is missing
+      ctx.fillStyle = "#FFD700";
+      ctx.beginPath();
+      ctx.arc(0, 0, this.radius, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    // 3. The Glint Effect (Draws a shiny white flash when the coin faces the camera)
+    if (scaleX > 0.8) {
+      ctx.fillStyle = `rgba(255, 255, 255, ${(scaleX - 0.8) * 5})`;
+      ctx.beginPath();
+      ctx.arc(
+        -this.radius / 3,
+        -this.radius / 3,
+        this.radius / 3,
+        0,
+        Math.PI * 2,
+      );
+      ctx.fill();
+    }
+
+    ctx.restore();
   }
 }
