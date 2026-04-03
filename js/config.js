@@ -1,22 +1,39 @@
-// At the very top of config.js, before exporting CONFIG
-const isMobilePortrait = window.innerHeight > window.innerWidth;
+// --- AUTO-DETECT ORIENTATION ---
+const isMobileDevice = window.innerWidth <= 768 || /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+const isPortrait = window.innerHeight > window.innerWidth;
+const useMobileGrid = isMobileDevice && isPortrait; // true for phones, false for PC
 
 export const CONFIG = {
   TITLE: "Flappy Binnie",
-  // Swap dimensions if holding a phone!
-  WIDTH: isMobilePortrait ? 720 : 1080,
-  HEIGHT: isMobilePortrait ? 1080 : 720,
+
+  // 1. GRID SIZES
+  WIDTH: useMobileGrid ? 450 : 1080,
+  HEIGHT: useMobileGrid ? 800 : 720,
   BIRD_SIZE: 80,
-  GRAVITY: 0.4,
-  FLAP_STRENGTH: -8,
+
+  // 2. DYNAMIC PHYSICS
+  // Mobile needs slightly heavier gravity but a much stronger flap to cover the taller screen smoothly.
+  GRAVITY: useMobileGrid ? 0.3 : 0.25,
+  FLAP_STRENGTH: useMobileGrid ? -6.5 : -5.5,
   MAX_FALL_SPEED: 14.5,
-  PIPE_SPEED: 4,
+  
+  // 3. DYNAMIC SPEEDS & DISTANCES
+  // We slightly reduce the base speed on mobile because of the narrower reaction window.
+  PIPE_SPEED: useMobileGrid ? 3.5 : 4.5,
   MAX_PIPE_SPEED: 9,
-  PIPE_WIDTH: 130,
-  HORIZ_GAP: 400,
-  VERT_GAP: 200,
+  
+  // Thinner pipes on mobile give the player more horizontal breathing room.
+  PIPE_WIDTH: useMobileGrid ? 90 : 130,
+  
+  // CRITICAL FIX: Bring pipes much closer horizontally on mobile so the player can see what is coming!
+  HORIZ_GAP: useMobileGrid ? 280 : 400,
+  
+  // Slightly larger vertical safe space on mobile to account for the stronger flap.
+  VERT_GAP: useMobileGrid ? 230 : 200,
+
   GROUND_HEIGHT: 150,
   BG_OFFSET: -900,
+  // ... Keep all your BACKGROUNDS, ACHIEVEMENTS, and SOUNDS exactly the same below this line!
   BACKGROUNDS: [
     "assets/Background/Background1.png",
     "assets/Background/Background2.png",

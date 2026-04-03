@@ -202,11 +202,27 @@ export class Game {
   spawnPipes() {
     let minY = 200;
     let maxY = CONFIG.HEIGHT - CONFIG.GROUND_HEIGHT - 200;
-    let gapY = Math.floor(Math.random() * (maxY - minY + 1)) + minY;
+
+    if (!this.lastPipeY) {
+      this.lastPipeY = (minY + maxY) / 2;
+    }
+
+    // --- DYNAMIC DELTA ---
+    // If we are on mobile (WIDTH is 450), limit the vertical jump to 130px.
+    // If we are on desktop (WIDTH is 1080), allow larger 180px jumps.
+    let maxDelta = (CONFIG.WIDTH === 450) ? 130 : 180; 
+
+    let shift = Math.random() * maxDelta * 2 - maxDelta;
+    let gapY = this.lastPipeY + shift;
+
+    gapY = Math.max(minY, Math.min(maxY, gapY));
+    this.lastPipeY = gapY;
+
     let slideDir = Math.random() < 0.5 ? -1 : 1;
     let slideSpd = this.level === 4 ? 1 : this.level >= 5 ? 2 : 0;
     let slideRng = this.level === 4 ? 25 : this.level >= 5 ? 45 : 0;
     this.currentPipeStyle = Math.floor(Math.random() * 4);
+
     this.pipes.push(
       new Pipe(
         CONFIG.WIDTH + 50,
@@ -346,30 +362,31 @@ export class Game {
         this.playSFX("flap");
       }
     } else if (this.state === "SETTINGS") {
-      if (this.isClicked(mx, my, cx + 80, cy - 60, 100, 50)) {
+      // Matches the new tighter button layout
+      if (this.isClicked(mx, my, cx + 80, cy - 50, 80, 45)) {
         this.settings.bgm = !this.settings.bgm;
         this.applySettings();
       }
-      if (this.isClicked(mx, my, cx + 80, cy + 10, 100, 50)) {
+      if (this.isClicked(mx, my, cx + 80, cy + 20, 80, 45)) {
         this.settings.sfx = !this.settings.sfx;
         this.applySettings();
         this.playSFX("flap");
       }
-      if (this.isClicked(mx, my, cx + 30, cy + 80, 50, 50)) {
+      if (this.isClicked(mx, my, cx + 20, cy + 90, 45, 45)) {
         this.settings.volume = Math.max(0, this.settings.volume - 0.1);
         this.applySettings();
         this.playSFX("flap");
       }
-      if (this.isClicked(mx, my, cx + 130, cy + 80, 50, 50)) {
+      if (this.isClicked(mx, my, cx + 130, cy + 90, 45, 45)) {
         this.settings.volume = Math.min(1, this.settings.volume + 0.1);
         this.applySettings();
         this.playSFX("flap");
       }
-      if (this.isClicked(mx, my, cx, cy + 180, 200, 60)) {
+      if (this.isClicked(mx, my, cx, cy + 150, 160, 50)) {
         this.state = "MENU";
       }
     } else if (this.state === "ACHIEVEMENTS") {
-      if (this.isClicked(mx, my, cx, cy + 240, 200, 60)) {
+      if (this.isClicked(mx, my, cx, cy + 290, 180, 50)) {
         this.state = "MENU";
       }
     } else if (this.state === "GET_READY") {
@@ -383,9 +400,10 @@ export class Game {
       this.bird.flap();
     } else if (this.state === "GAMEOVER") {
       if (Date.now() - this.deathTime > 600) {
-        if (this.isClicked(mx, my, cx - 110, cy + 160, 180, 60))
-          this.prepareRound();
+        // Shrunk button widths so they don't overlap on small screens
         if (this.isClicked(mx, my, cx + 110, cy + 160, 180, 60))
+          this.prepareRound();
+        if (this.isClicked(mx, my, cx - 110, cy + 160, 180, 60))
           this.resetToMenu();
       }
     }
@@ -525,13 +543,12 @@ export class Game {
   drawScorePanel() {
     let cx = CONFIG.WIDTH / 2;
     let cy = CONFIG.HEIGHT / 2;
-    const panelW = 440;
-    const panelH = 220; // Made slightly wider
+    const panelW = 380; // Shrunk from 440 to fit mobile
+    const panelH = 210;
     const panelX = cx - panelW / 2;
-    const panelY = cy - panelH / 2 - 30;
+    const panelY = cy - panelH / 2 - 40;
 
     this.ctx.save();
-    // Drop Shadow
     this.ctx.fillStyle = "rgba(0, 0, 0, 0.5)";
     if (this.ctx.roundRect) {
       this.ctx.beginPath();
@@ -539,7 +556,6 @@ export class Game {
       this.ctx.fill();
     }
 
-    // Main Board
     this.ctx.fillStyle = "#ded895";
     this.ctx.strokeStyle = "#543847";
     this.ctx.lineWidth = 6;
@@ -550,55 +566,53 @@ export class Game {
       this.ctx.stroke();
     }
 
-    // LEFT SIDE: Medal Box
+    // Left Side: Medal Box
     this.ctx.fillStyle = "rgba(0,0,0,0.05)";
     if (this.ctx.roundRect) {
       this.ctx.beginPath();
-      this.ctx.roundRect(panelX + 20, panelY + 20, 160, 180, 15);
+      this.ctx.roundRect(panelX + 15, panelY + 15, 140, 180, 15);
       this.ctx.fill();
     }
 
-    // RIGHT SIDE: Score Box
+    // Right Side: Score Box
     this.ctx.fillStyle = "#c2b280";
     if (this.ctx.roundRect) {
       this.ctx.beginPath();
-      this.ctx.roundRect(panelX + 200, panelY + 20, 220, 180, 15);
+      this.ctx.roundRect(panelX + 165, panelY + 15, 200, 180, 15);
       this.ctx.fill();
       this.ctx.stroke();
     }
 
-    // Draw Right Side Texts (Scores)
-    this.drawText("SCORE", 24, panelY + 50, panelX + 310, "center", "#ff7a00");
+    this.drawText("SCORE", 22, panelY + 45, panelX + 265, "center", "#ff7a00");
     this.drawText(
       this.score.toString(),
-      48,
-      panelY + 95,
-      panelX + 310,
+      42,
+      panelY + 90,
+      panelX + 265,
       "center",
       "white",
     );
 
-    this.drawText("BEST", 24, panelY + 145, panelX + 310, "center", "#ff7a00");
+    this.drawText("BEST", 22, panelY + 140, panelX + 265, "center", "#ff7a00");
     this.drawText(
       this.highScore.toString(),
-      36,
-      panelY + 185,
-      panelX + 310,
+      32,
+      panelY + 180,
+      panelX + 265,
       "center",
       "white",
     );
     if (this.isNewBest)
       this.drawText(
         "NEW!",
-        20,
-        panelY + 130,
-        panelX + 380,
+        18,
+        panelY + 125,
+        panelX + 325,
         "center",
         "#ff0000",
       );
 
-    // --- MEDAL LOGIC & ANIMATION ---
-    this.drawText("MEDAL", 24, panelY + 50, panelX + 100, "center", "#543847");
+    this.drawText("MEDAL", 22, panelY + 45, panelX + 85, "center", "#543847");
 
     let medalColor = null;
     let medalName = "";
@@ -616,67 +630,58 @@ export class Game {
       medalName = "BRONZE";
     }
 
-    let mx = panelX + 100; // Centered exactly in the left box
-    let my = panelY + 120;
+    let mx = panelX + 85;
+    let my = panelY + 110;
 
     if (medalColor) {
-      // Interactive animation: Medal floats gently up and down
       let hoverFloat = Math.sin(Date.now() / 300) * 4;
-
-      // Stylish Ribbon design
       this.ctx.fillStyle = "#d1685a";
       this.ctx.beginPath();
-      this.ctx.moveTo(mx - 20, my - 30 + hoverFloat);
-      this.ctx.lineTo(mx + 20, my - 30 + hoverFloat);
-      this.ctx.lineTo(mx + 25, my + 40 + hoverFloat);
-      this.ctx.lineTo(mx, my + 25 + hoverFloat); // Ribbon notch
-      this.ctx.lineTo(mx - 25, my + 40 + hoverFloat);
+      this.ctx.moveTo(mx - 18, my - 25 + hoverFloat);
+      this.ctx.lineTo(mx + 18, my - 25 + hoverFloat);
+      this.ctx.lineTo(mx + 22, my + 35 + hoverFloat);
+      this.ctx.lineTo(mx, my + 20 + hoverFloat);
+      this.ctx.lineTo(mx - 22, my + 35 + hoverFloat);
       this.ctx.fill();
 
-      // Medal Base
       this.ctx.beginPath();
-      this.ctx.arc(mx, my + hoverFloat, 35, 0, Math.PI * 2);
+      this.ctx.arc(mx, my + hoverFloat, 30, 0, Math.PI * 2);
       this.ctx.fillStyle = medalColor;
       this.ctx.fill();
       this.ctx.lineWidth = 4;
       this.ctx.strokeStyle = "white";
       this.ctx.stroke();
 
-      // Inner Detail
       this.ctx.beginPath();
-      this.ctx.arc(mx, my + hoverFloat, 25, 0, Math.PI * 2);
+      this.ctx.arc(mx, my + hoverFloat, 20, 0, Math.PI * 2);
       this.ctx.strokeStyle = "rgba(0,0,0,0.2)";
       this.ctx.lineWidth = 2;
       this.ctx.stroke();
 
-      // Animated moving shine based on time
-      let shineOffset = Math.sin(Date.now() / 500) * 10;
+      let shineOffset = Math.sin(Date.now() / 500) * 8;
       this.ctx.beginPath();
       this.ctx.arc(
-        mx - 8 + shineOffset,
-        my - 8 + hoverFloat,
-        6,
+        mx - 6 + shineOffset,
+        my - 6 + hoverFloat,
+        5,
         0,
         Math.PI * 2,
       );
       this.ctx.fillStyle = "rgba(255,255,255,0.6)";
       this.ctx.fill();
 
-      // Label at the bottom
-      this.drawText(medalName, 14, panelY + 185, mx, "center", medalColor);
+      this.drawText(medalName, 12, panelY + 180, mx, "center", medalColor);
     } else {
-      // Cool dashed placeholder box if no medal earned yet
       this.ctx.fillStyle = "rgba(0,0,0,0.1)";
       this.ctx.strokeStyle = "rgba(0,0,0,0.2)";
       this.ctx.lineWidth = 3;
-      this.ctx.setLineDash([6, 6]); // Creates dashed line
+      this.ctx.setLineDash([6, 6]);
       this.ctx.beginPath();
-      this.ctx.arc(mx, my, 35, 0, Math.PI * 2);
+      this.ctx.arc(mx, my, 30, 0, Math.PI * 2);
       this.ctx.fill();
       this.ctx.stroke();
-      this.ctx.setLineDash([]); // Always reset line dash after using it!
+      this.ctx.setLineDash([]);
     }
-
     this.ctx.restore();
   }
 
@@ -692,37 +697,35 @@ export class Game {
     this.ctx.lineWidth = 6;
     if (this.ctx.roundRect) {
       this.ctx.beginPath();
-      this.ctx.roundRect(cx - 300, cy - 250, 600, 460, 20);
+      // Made the box much taller and moved it up to fit 8 items
+      this.ctx.roundRect(cx - 190, cy - 330, 380, 680, 20);
       this.ctx.fill();
       this.ctx.stroke();
     }
 
-    this.drawText("ACHIEVEMENTS", 42, cy - 190, cx, "center", "#ffce00");
+    this.drawText("ACHIEVEMENTS", 36, cy - 270, cx, "center", "#ffce00");
 
-    // Draw List
-    let startY = cy - 120;
+    let startY = cy - 220; // Start the list higher up
     CONFIG.ACHIEVEMENTS.forEach((ach, index) => {
-      let col = index % 2;
-      let row = Math.floor(index / 2);
-      let ax = cx - 250 + col * 280;
-      let ay = startY + row * 80;
+      let ax = cx - 170;
+      let ay = startY + index * 60; // Tighter vertical stacking
 
       let isUnlocked = this.unlockedAchievements.includes(ach.id);
 
       this.ctx.fillStyle = isUnlocked ? "#c2b280" : "rgba(0,0,0,0.1)";
       this.ctx.strokeStyle = "#543847";
       this.ctx.lineWidth = 2;
-      this.ctx.fillRect(ax, ay, 260, 60);
-      this.ctx.strokeRect(ax, ay, 260, 60);
+      this.ctx.fillRect(ax, ay, 340, 50);
+      this.ctx.strokeRect(ax, ay, 340, 50);
 
       // Icon box
       this.ctx.fillStyle = isUnlocked ? "#55aa55" : "#888";
-      this.ctx.fillRect(ax + 5, ay + 5, 50, 50);
+      this.ctx.fillRect(ax + 5, ay + 5, 40, 40);
       this.drawText(
         isUnlocked ? "✔" : "🔒",
-        24,
-        ay + 38,
-        ax + 30,
+        20,
+        ay + 32,
+        ax + 25,
         "center",
         "white",
       );
@@ -730,24 +733,23 @@ export class Game {
       // Text
       this.drawText(
         isUnlocked ? ach.name : "???",
-        18,
-        ay + 25,
-        ax + 65,
+        16,
+        ay + 20,
+        ax + 55,
         "left",
         isUnlocked ? "white" : "#555",
       );
-
-      // Smaller description text
-      this.ctx.font = `12px Courier`;
+      this.ctx.font = `11px Courier`;
       this.ctx.fillStyle = isUnlocked ? "#543847" : "#555";
       this.ctx.fillText(
         isUnlocked ? ach.desc : "Keep playing to unlock.",
-        ax + 65,
-        ay + 45,
+        ax + 55,
+        ay + 38,
       );
     });
 
-    this.drawButton("BACK", cx, cy + 240, 200, 60, "#d1685a");
+    // Moved the BACK button safely to the bottom
+    this.drawButton("BACK", cx, cy + 290, 180, 50, "#d1685a");
   }
 
   drawSettingsPanel() {
@@ -755,47 +757,53 @@ export class Game {
     let cy = CONFIG.HEIGHT / 2;
     this.ctx.fillStyle = "rgba(0, 0, 0, 0.7)";
     this.ctx.fillRect(0, 0, CONFIG.WIDTH, CONFIG.HEIGHT);
+
     this.ctx.fillStyle = "#ded895";
     this.ctx.strokeStyle = "#543847";
     this.ctx.lineWidth = 6;
     if (this.ctx.roundRect) {
       this.ctx.beginPath();
-      this.ctx.roundRect(cx - 200, cy - 150, 400, 400, 20);
+      // Mobile-sized box
+      this.ctx.roundRect(cx - 170, cy - 160, 340, 350, 20);
       this.ctx.fill();
       this.ctx.stroke();
     }
 
-    this.drawText("SETTINGS", 36, cy - 100, cx, "center", "white");
-    this.drawText("Music:", 28, cy - 50, cx - 150, "left", "white");
-    this.drawText("SFX:", 28, cy + 20, cx - 150, "left", "white");
-    this.drawText("Vol:", 28, cy + 90, cx - 150, "left", "white");
+    this.drawText("SETTINGS", 32, cy - 100, cx, "center", "white");
+
+    this.drawText("Music:", 24, cy - 40, cx - 120, "left", "white");
+    this.drawText("SFX:", 24, cy + 30, cx - 120, "left", "white");
+    this.drawText("Vol:", 24, cy + 100, cx - 120, "left", "white");
+
+    // Smaller, repositioned buttons
     this.drawButton(
       this.settings.bgm ? "ON" : "OFF",
       cx + 80,
-      cy - 60,
-      100,
-      50,
+      cy - 50,
+      80,
+      45,
       this.settings.bgm ? "#55aa55" : "#aa5555",
     );
     this.drawButton(
       this.settings.sfx ? "ON" : "OFF",
       cx + 80,
-      cy + 10,
-      100,
-      50,
+      cy + 20,
+      80,
+      45,
       this.settings.sfx ? "#55aa55" : "#aa5555",
     );
-    this.drawButton("-", cx + 30, cy + 80, 50, 50, "#c2b280");
+    this.drawButton("-", cx + 20, cy + 90, 45, 45, "#c2b280");
     this.drawText(
       Math.round(this.settings.volume * 10).toString(),
-      28,
-      cy + 90,
-      cx + 80,
+      24,
+      cy + 100,
+      cx + 75,
       "center",
       "white",
     );
-    this.drawButton("+", cx + 130, cy + 80, 50, 50, "#c2b280");
-    this.drawButton("BACK", cx, cy + 180, 200, 60, "#d1685a");
+    this.drawButton("+", cx + 130, cy + 90, 45, 45, "#c2b280");
+
+    this.drawButton("BACK", cx, cy + 150, 160, 50, "#d1685a");
   }
 
   drawGround() {
@@ -833,12 +841,13 @@ export class Game {
     }
   }
 
-  // --- NEW: POP-UP NOTIFICATION ---
   drawToast() {
     if (this.toastTimer > 0) {
       this.toastTimer--;
-      let cy = Math.min(60, 60 - (this.toastTimer - 160) * 5); // Slide down animation
-      if (this.toastTimer < 20) cy = 60 - (20 - this.toastTimer) * 5; // Slide up animation
+
+      // Slide down/up animation math
+      let cy = Math.min(60, 60 - (this.toastTimer - 160) * 5);
+      if (this.toastTimer < 20) cy = 60 - (20 - this.toastTimer) * 5;
 
       this.ctx.save();
       this.ctx.globalAlpha = Math.min(1, this.toastTimer / 20);
@@ -850,18 +859,20 @@ export class Game {
 
       if (this.ctx.roundRect) {
         this.ctx.beginPath();
-        this.ctx.roundRect(cx - 250, cy - 30, 500, 60, 30);
+        // SHRUNK the width to 380 so it fits beautifully inside the 450 mobile screen!
+        this.ctx.roundRect(cx - 190, cy - 30, 380, 60, 20);
         this.ctx.fill();
         this.ctx.stroke();
       } else {
-        this.ctx.fillRect(cx - 250, cy - 30, 500, 60);
-        this.ctx.strokeRect(cx - 250, cy - 30, 500, 60);
+        this.ctx.fillRect(cx - 190, cy - 30, 380, 60);
+        this.ctx.strokeRect(cx - 190, cy - 30, 380, 60);
       }
 
+      // Shrunk the text size slightly to ensure long achievement names fit
       this.drawText(
         `🏆 UNLOCKED: ${this.activeToast}`,
-        24,
-        cy + 8,
+        18,
+        cy + 6,
         cx,
         "center",
         "#543847",
@@ -1016,23 +1027,24 @@ export class Game {
     if (this.state === "GAMEOVER") {
       this.drawText("GAME OVER", 48, cy - 210);
       this.drawScorePanel();
+
       this.drawButton(
-        "RESTART",
+        "QUIT",
         cx - 110,
         cy + 160,
         180,
         60,
-        "#55aa55",
+        "#cd5c4d",
         "white",
         true,
       );
       this.drawButton(
-        "QUIT",
+        "RESTART",
         cx + 110,
         cy + 160,
         180,
         60,
-        "#d1685a",
+        "#55aa55",
         "white",
         true,
       );

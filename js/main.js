@@ -13,7 +13,6 @@ if ("serviceWorker" in navigator) {
   });
 }
 
-
 window.onload = () => {
   const canvas = document.getElementById("gameCanvas");
 
@@ -54,7 +53,14 @@ const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
 function showInstallBanner() {
   // Small delay so it pops up a second after the game loads
   setTimeout(() => {
-    if (installToast) installToast.classList.add("show");
+    if (installToast) {
+      installToast.classList.add("show");
+
+      // THE FIX: Automatically hide the banner after 8 seconds so it doesn't block the game!
+      setTimeout(() => {
+        installToast.classList.remove("show");
+      }, 8000);
+    }
   }, 1800);
 }
 
