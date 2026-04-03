@@ -3,12 +3,17 @@ const isMobileDevice = window.innerWidth <= 768 || /Android|webOS|iPhone|iPad|iP
 const isPortrait = window.innerHeight > window.innerWidth;
 const useMobileGrid = isMobileDevice && isPortrait; // true for phones, false for PC
 
+// THE MAGIC MATH: 
+// We lock the width at 450 so the difficulty/reaction time is identical for all players.
+// But we multiply 450 by the phone's exact physical aspect ratio to get the perfect Canvas Height!
+const dynamicMobileHeight = Math.floor(450 * (window.innerHeight / window.innerWidth));
+
 export const CONFIG = {
   TITLE: "Flappy Binnie",
 
   // 1. GRID SIZES
   WIDTH: useMobileGrid ? 450 : 1080,
-  HEIGHT: useMobileGrid ? 800 : 720,
+  HEIGHT: useMobileGrid ? dynamicMobileHeight : 720,
   BIRD_SIZE: 80,
 
   // 2. DYNAMIC PHYSICS
