@@ -143,18 +143,18 @@ export class Game {
       let trimAmount = 0;
 
       if (key === "music") {
-        gainNode.gain.value = 1.0;
+        gainNode.gain.value = 0.5;
         trimAmount = 1; // Skips first 1 seconds
         source.loop = true;
         this.bgmSource = source;
       } else if (key === "start") {
-        gainNode.gain.value = 1.5;
+        gainNode.gain.value = 1.0;
         trimAmount = 0.5; // Skips first 0.2 seconds (Adjust this to fix the delay!)
       } else if (key === "flap") {
-        gainNode.gain.value = 1.5;
+        gainNode.gain.value = 0.7;
         trimAmount = 0.05; // Skips a tiny 0.05 seconds to make tapping feel instantly crisp
       } else if (key === "crash") {
-        gainNode.gain.value = 1.5;
+        gainNode.gain.value = 1;
         trimAmount = 0.1; // Skips first 0.1 seconds
       }
 
