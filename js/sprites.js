@@ -219,7 +219,17 @@ export class Bird {
     else {
       this.drawRetroWing(ctx, wingStyle, isFlapping);
     }
-
+    // --- ADD THIS TO THE BOTTOM OF BIRD DRAW() ---
+    // Draw Shield Bubble if active!
+    if (this.isShielded) {
+      ctx.fillStyle = "rgba(0, 200, 255, 0.4)";
+      ctx.beginPath();
+      ctx.arc(0, 0, this.size * 0.8, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.lineWidth = 4;
+      ctx.strokeStyle = "rgba(0, 255, 255, 0.8)";
+      ctx.stroke();
+    }
     ctx.restore();
   }
 }
@@ -371,6 +381,90 @@ export class Coin {
       ctx.fill();
     }
 
+    ctx.restore();
+  }
+}
+
+// --- NEW: PARTICLE ENGINE ---
+export class Particle {
+  constructor(x, y, color, type) {
+    this.x = x;
+    this.y = y;
+    this.color = color;
+    this.type = type;
+    this.life = 1.0;
+    this.decay = Math.random() * 0.05 + 0.02;
+    this.vx = (Math.random() - 0.5) * 8;
+    this.vy = (Math.random() - 0.5) * 8;
+    this.size = Math.random() * 6 + 4;
+  }
+  update() {
+    this.x += this.vx;
+    this.y += this.vy;
+    if (this.type === "feather") {
+      this.vy += 0.1;
+      this.vx *= 0.9;
+    } // Flutter down
+    else if (this.type === "spark") {
+      this.vy += 0.2;
+    } // Sparkle gravity
+    else if (this.type === "smoke") {
+      this.vy -= 0.1;
+      this.size += 0.2;
+    } // Float up
+    this.life -= this.decay;
+  }
+  draw(ctx) {
+    ctx.save();
+    ctx.globalAlpha = Math.max(0, this.life);
+    ctx.fillStyle = this.color;
+    if (this.type === "feather")
+      ctx.fillRect(this.x, this.y, this.size, this.size / 2);
+    else ctx.fillRect(this.x, this.y, this.size, this.size);
+    ctx.restore();
+  }
+}
+
+// --- NEW: POWER-UPS ---
+export class PowerUp {
+  constructor(x, y, type) {
+    this.x = x;
+    this.y = y;
+    this.type = type; // 'magnet' or 'shield'
+    this.radius = 22;
+    this.markedForDeletion = false;
+    this.timeOffset = Math.random() * 100;
+  }
+  update(speed) {
+    this.x -= speed;
+    if (this.x < -50) this.markedForDeletion = true;
+  }
+  draw(ctx) {
+    let time = Date.now() / 150 + this.timeOffset;
+    let bobY = this.y + Math.sin(time * 0.5) * 10;
+
+    ctx.save();
+    ctx.translate(this.x, bobY);
+
+    if (this.type === "magnet") {
+      // Draw Pixel Magnet
+      ctx.fillStyle = "#ff0000"; // Red base
+      ctx.fillRect(-15, -15, 10, 30);
+      ctx.fillRect(5, -15, 10, 30);
+      ctx.fillRect(-15, 5, 30, 10);
+      ctx.fillStyle = "#cccccc"; // Silver tips
+      ctx.fillRect(-15, -15, 10, 10);
+      ctx.fillRect(5, -15, 10, 10);
+    } else if (this.type === "shield") {
+      // Draw Glowing Shield Orb
+      ctx.fillStyle = "rgba(0, 200, 255, 0.5)";
+      ctx.beginPath();
+      ctx.arc(0, 0, this.radius, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = "#ffffff";
+      ctx.lineWidth = 3;
+      ctx.stroke();
+    }
     ctx.restore();
   }
 }

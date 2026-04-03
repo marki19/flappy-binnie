@@ -1,29 +1,32 @@
-const CACHE_NAME = 'binnie-cache-v1';
+const CACHE_NAME = 'flappy-binnie-v2';
 
-// These are the files the phone will download to play offline
-const ASSETS = [
-  './',
-  './index.html',
-  './game.js',
-  './config.js',
-  './assets.js',
-  './sprites.js'
-];
-
-// Install the service worker and cache the files
 self.addEventListener('install', (e) => {
-  e.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => {
-      return cache.addAll(ASSETS);
-    })
-  );
+    self.skipWaiting(); // Instantly activate the new service worker
 });
 
-// Intercept network requests and serve from cache if offline
+self.addEventListener('activate', (e) => {
+    // Delete old caches when a new version is released
+    e.waitUntil(caches.keys().then(keys => Promise.all(
+        keys.map(key => {
+            if (key !== CACHE_NAME) return caches.delete(key);
+        })
+    )));
+});
+
 self.addEventListener('fetch', (e) => {
-  e.respondWith(
-    caches.match(e.request).then((response) => {
-      return response || fetch(e.request);
-    })
-  );
+    // Ignore database calls
+    if (e.request.method !== 'GET' || e.request.url.includes('firestore.googleapis.com')) return;
+
+    e.respondWith(
+        // 1. ALWAYS try the network first so you get the newest updates!
+        fetch(e.request).then(networkResponse => {
+            // If the internet works, save a fresh copy to the offline cache
+            const clone = networkResponse.clone();
+            caches.open(CACHE_NAME).then(cache => cache.put(e.request, clone));
+            return networkResponse;
+        }).catch(() => {
+            // 2. If the internet is down (or local server is off), load the offline save!
+            return caches.match(e.request);
+        })
+    );
 });

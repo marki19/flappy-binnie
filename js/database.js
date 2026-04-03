@@ -10,6 +10,7 @@ import {
   orderBy,
   limit,
   getDocs,
+  onSnapshot,
 } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-firestore.js";
 
 const firebaseConfig = {
@@ -30,19 +31,22 @@ export const db = getFirestore(app);
 
 // 3. Create and EXPORT the save function so game.js can see it
 export async function savePlayerData(
+  uid,
   username,
   highScore,
   coins,
   unlockedAchievements,
 ) {
-  if (!username) return;
+  if (!uid || !username) return;
 
   try {
-    const userRef = doc(db, "users", username);
+    // THE FIX: Use the hidden 'uid' as the database folder name, NOT the username!
+    const userRef = doc(db, "users", uid);
+
     await setDoc(
       userRef,
       {
-        username: username,
+        username: username, // The username is now just a label inside the folder
         highScore: highScore,
         coins: coins,
         unlockedAchievements: unlockedAchievements,
@@ -76,4 +80,28 @@ export async function getLeaderboardData(topN = 50) {
     console.error("Error fetching leaderboard:", error);
     return [];
   }
+}
+
+// --- 5. REAL-TIME LEADERBOARD SUBSCRIPTION ---
+export function subscribeToLeaderboard(topN, callback) {
+  const usersRef = collection(db, "users");
+  const q = query(usersRef, orderBy("highScore", "desc"), limit(topN));
+
+  // onSnapshot creates a live connection to the database!
+  // It returns an "unsubscribe" function that we can call later to stop listening.
+  return onSnapshot(
+    q,
+    (querySnapshot) => {
+      let leaderboard = [];
+      querySnapshot.forEach((doc) => {
+        leaderboard.push(doc.data());
+      });
+
+      // Send the live data back to main.js to draw it
+      callback(leaderboard);
+    },
+    (error) => {
+      console.error("Live Leaderboard Error:", error);
+    },
+  );
 }

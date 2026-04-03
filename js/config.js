@@ -69,7 +69,8 @@ export const CONFIG = {
     "assets/Background/Background9.png",
   ],
   PIPE_SHEET: "assets/tiles/SimpleStyle4.png",
-  CHAR_IMG: "assets/charIMG/ribinie.png",
+
+  CHAR_IMG: "assets/charIMG/ribiniew.png",
 
   // --- NEW: ACHIEVEMENT DEFINITIONS ---
   ACHIEVEMENTS: [

@@ -1,16 +1,16 @@
 import { CONFIG } from "./config.js";
 import { Assets } from "./assets.js";
-import { Bird, Pipe, Coin } from "./sprites.js";
+import { Bird, Pipe, Coin, Particle, PowerUp } from "./sprites.js";
 import { CharacterMenu } from "./character.js";
 import { AchievementsMenu } from "./achievements.js";
 import { audioCtx } from "./assets.js"; // Make sure to add this import at the very top of game.js!
 import { savePlayerData } from "./database.js";
 
 export class Game {
-  constructor(canvas, ctx, playerName, cloudData) {
+  constructor(canvas, ctx, uid, playerName, cloudData) {
     this.canvas = canvas;
     this.ctx = ctx;
-
+    this.uid = uid;
     this.username = playerName;
 
     // Use cloud highscore if it's better than the local one
@@ -70,7 +70,8 @@ export class Game {
 
   // --- NEW: DYNAMIC DATA INJECTION ---
   // This allows the Sidebar HTML to update the game without refreshing the page!
-  updatePlayerData(playerName, cloudData) {
+  updatePlayerData(uid, playerName, cloudData) {
+    this.uid = uid;
     this.username = playerName;
 
     const localHigh =
@@ -91,10 +92,14 @@ export class Game {
     this.bird = new Bird();
     this.pipes = [];
     this.coinsList = [];
+    this.particles = []; // NEW
+    this.powerups = []; // NEW
+    this.activePowerUps = { shield: 0, magnet: 0 }; // NEW
     this.score = 0;
     this.level = 1;
     this.currentSpeed = CONFIG.PIPE_SPEED;
     this.deathTime = 0;
+
     this.lastMilestone = 0;
     this.isNewBest = false;
     this.shakeTimer = 0;
@@ -104,6 +109,12 @@ export class Game {
     this.bgAlpha = 255;
     this.isFading = false;
     this.currentPipeStyle = Math.floor(Math.random() * 4);
+  }
+
+  spawnParticles(x, y, color, type, count) {
+    for (let i = 0; i < count; i++) {
+      this.particles.push(new Particle(x, y, color, type));
+    }
   }
 
   startFromMenu() {
@@ -207,7 +218,7 @@ export class Game {
         gainNode.gain.value = 1;
         trimAmount = 0.1; // Skips first 0.1 seconds
       } else if (key === "coin") {
-        gainNode.gain.value = 5;
+        gainNode.gain.value = 1.5;
         trimAmount = 0.2; // Skips first 0.2 seconds
       } else if (key === "error") {
         gainNode.gain.value = 1.0; // Normal volume
@@ -268,6 +279,7 @@ export class Game {
   spawnPipes() {
     let minY = 200;
     let maxY = CONFIG.HEIGHT - CONFIG.GROUND_HEIGHT - 200;
+    let exactCenterX = CONFIG.WIDTH + 50 + CONFIG.PIPE_WIDTH / 2;
 
     if (!this.lastPipeY) {
       this.lastPipeY = (minY + maxY) / 2;
@@ -312,13 +324,16 @@ export class Game {
       ),
     );
 
-    // 70% chance to spawn a coin perfectly in the middle of the gap!
+    // 70% chance to spawn SOMETHING
     if (Math.random() > 0.3) {
-      // THE ALIGNMENT FIX:
-      // Pipe starts at (WIDTH + 50). We add half the pipe's width to find the exact dead-center!
-      let exactCenterX = CONFIG.WIDTH + 50 + CONFIG.PIPE_WIDTH / 2;
-
-      this.coinsList.push(new Coin(exactCenterX, gapY));
+      if (Math.random() > 0.85) {
+        // 15% chance it's a Power-Up instead of a coin!
+        let type = Math.random() > 0.5 ? "magnet" : "shield";
+        this.powerups.push(new PowerUp(exactCenterX, gapY, type));
+      } else {
+        // Otherwise, normal coin
+        this.coinsList.push(new Coin(exactCenterX, gapY));
+      }
     }
   }
 
@@ -343,6 +358,7 @@ export class Game {
         this.bgmSource = null;
       }
       savePlayerData(
+        this.uid,
         this.username,
         this.highScore,
         this.coins,
@@ -423,14 +439,16 @@ export class Game {
 
     if (this.state === "MENU") {
       if (this.state === "MENU") {
-        // Shrunk button heights to 50 and tightened gaps to fit 4 buttons!
+        let cx = CONFIG.WIDTH / 2;
+        let cy = CONFIG.HEIGHT / 2;
+
+        // THESE ARE THE ONLY 4 BUTTONS ALLOWED NOW:
         if (this.isClicked(mx, my, cx, cy + 10, 200, 50)) this.startFromMenu();
         if (this.isClicked(mx, my, cx, cy + 75, 200, 50))
           AchievementsMenu.open(this);
         if (this.isClicked(mx, my, cx, cy + 140, 200, 50))
           CharacterMenu.open(this);
 
-        // NEW LEADERBOARD BUTTON
         if (this.isClicked(mx, my, cx, cy + 205, 200, 50)) {
           this.playSFX("flap");
           if (window.openLeaderboard) window.openLeaderboard();
@@ -462,18 +480,34 @@ export class Game {
       this.bird.flap();
       this.unlockAchievement("first_flap");
     } else if (this.state === "PLAYING") {
-      this.playSFX("flap");
-      this.bird.flap();
-    } else if (this.state === "GAMEOVER") {
-      if (Date.now() - this.deathTime > 600) {
-        // Restart / Quit buttons
-        if (this.isClicked(mx, my, cx + 110, cy + 160, 180, 60))
-          this.prepareRound();
-        if (this.isClicked(mx, my, cx - 110, cy + 160, 180, 60))
-          this.resetToMenu();
+      // Did they click the Pause Button (Top Left)?
+      if (this.isClicked(mx, my, 40, 40, 50, 50)) {
+        this.state = "PAUSED";
+        this.playSFX("start");
+      } else {
+        this.playSFX("flap");
+        this.bird.flap();
+        this.spawnParticles(this.bird.x, this.bird.y, "#ffffff", "feather", 5); // FEATHERS!
       }
+    } else if (this.state === "PAUSED") {
+      // 1. We shifted the Resume button up slightly
+      if (this.isClicked(mx, my, cx, cy - 40, 200, 60)) {
+        this.state = "PLAYING";
+        this.playSFX("flap");
+      }
+      // 2. We added a new QUIT TO MENU button below it!
+      if (this.isClicked(mx, my, cx, cy + 40, 200, 60)) {
+        this.resetToMenu();
+        this.playSFX("flap");
+      }
+    } else if (this.state === "GAMEOVER") {
+      // 3. Removed the 600ms delay! Buttons are instantly clickable!
+      if (this.isClicked(mx, my, cx + 110, cy + 160, 180, 60))
+        this.prepareRound();
+      if (this.isClicked(mx, my, cx - 110, cy + 160, 180, 60))
+        this.resetToMenu();
     }
-  }
+  } // <-- End of processClick function
 
   checkCollisions() {
     let offset = 15;
@@ -482,7 +516,6 @@ export class Game {
     let bw = this.bird.size - offset * 2;
     let bh = this.bird.size - offset * 2;
 
-    // Floor crash logic is handled in the bird update, but if we need to know it was a PIPE:
     for (let p of this.pipes) {
       let bounds = p.getBounds();
       if (
@@ -490,8 +523,24 @@ export class Game {
         bx + bw > bounds.x &&
         by < bounds.y + bounds.h &&
         by + bh > bounds.y
-      )
+      ) {
+        // SHIELD LOGIC!
+        if (this.activePowerUps.shield > 0) {
+          p.markedForDeletion = true; // Smash the pipe!
+          this.activePowerUps.shield = 0; // Break the shield
+          this.bird.isShielded = false;
+          this.playSFX("crash");
+          this.spawnParticles(
+            p.x,
+            p.y + (p.isTop ? p.h : 0),
+            "#55aa55",
+            "smoke",
+            30,
+          );
+          return false; // You survived!
+        }
         return true; // Crashed into pipe
+      }
     }
     return false;
   }
@@ -923,9 +972,68 @@ export class Game {
     }
     this.ctx.globalAlpha = 1.0;
 
+    // --- GAME LOGIC UPDATES ---
     if (this.state === "PLAYING") {
-      this.checkLiveAchievements(); // Constantly check for unlocked medals while playing
+      this.checkLiveAchievements();
 
+      // Magnet Logic
+      if (this.activePowerUps.magnet > 0) {
+        this.activePowerUps.magnet--;
+        this.coinsList.forEach((c) => {
+          let dx = this.bird.x - c.x;
+          let dy = this.bird.y - c.y;
+          let dist = Math.hypot(dx, dy);
+          if (dist < 250) {
+            c.x += (dx / dist) * 15;
+            c.y += (dy / dist) * 15;
+          }
+        });
+      }
+      if (this.activePowerUps.shield > 0) this.activePowerUps.shield--;
+      if (this.activePowerUps.shield === 0) this.bird.isShielded = false;
+
+      // Update Coins
+      this.coinsList.forEach((c) => {
+        c.update(this.currentSpeed);
+        let dist = Math.hypot(this.bird.x - c.x, this.bird.y - c.y);
+        if (dist < this.bird.size / 2 + c.radius && !c.markedForDeletion) {
+          c.markedForDeletion = true;
+          this.coins++;
+          this.playSFX("coin");
+          this.spawnParticles(c.x, c.y, "#FFD700", "spark", 15);
+        }
+      });
+      this.coinsList = this.coinsList.filter((c) => !c.markedForDeletion);
+
+      // Update PowerUps
+      this.powerups.forEach((p) => {
+        p.update(this.currentSpeed);
+        let dist = Math.hypot(this.bird.x - p.x, this.bird.y - p.y);
+        if (dist < this.bird.size / 2 + p.radius && !p.markedForDeletion) {
+          p.markedForDeletion = true;
+          this.playSFX("coin");
+          this.spawnParticles(
+            p.x,
+            p.y,
+            p.type === "magnet" ? "#ff0000" : "#00ffff",
+            "spark",
+            20,
+          );
+
+          if (p.type === "magnet") this.activePowerUps.magnet = 600;
+          if (p.type === "shield") {
+            this.activePowerUps.shield = 600;
+            this.bird.isShielded = true;
+          }
+        }
+      });
+      this.powerups = this.powerups.filter((p) => !p.markedForDeletion);
+
+      // Update Particles
+      this.particles.forEach((p) => p.update());
+      this.particles = this.particles.filter((p) => p.life > 0);
+
+      // Score Milestones
       if (
         this.score > 0 &&
         this.score % 10 === 0 &&
@@ -939,6 +1047,7 @@ export class Game {
         this.bgAlpha = 0;
       }
 
+      // Physics
       this.level = Math.min(5, Math.floor(this.score / 10) + 1);
       this.currentSpeed = Math.min(
         CONFIG.PIPE_SPEED + Math.floor(this.score / 10),
@@ -963,37 +1072,26 @@ export class Game {
         }
       });
       this.pipes = this.pipes.filter((p) => !p.markedForDeletion);
-
-      // Inside your PLAYING state in loop()
-
-      this.coinsList.forEach((c) => {
-        c.update(this.currentSpeed);
-
-        // Simple Circle Collision logic
-        let dist = Math.hypot(this.bird.x - c.x, this.bird.y - c.y);
-
-        // If bird radius + coin radius overlap, collect it!
-        if (dist < this.bird.size / 2 - 10 + c.radius && !c.markedForDeletion) {
-          c.markedForDeletion = true;
-          this.coins++;
-          this.playSFX("coin"); // Ding!
-        }
-      });
-
-      // Clean up collected or off-screen coins
-      this.coinsList = this.coinsList.filter((c) => !c.markedForDeletion);
     }
+    // --- END OF GAME LOGIC UPDATES ---
 
     if (this.state === "GAMEOVER") this.bird.update();
 
-    if (this.state === "PLAYING" || this.state === "GAMEOVER") {
+    // --- DRAWING EVERYTHING ---
+    if (
+      this.state === "PLAYING" ||
+      this.state === "GAMEOVER" ||
+      this.state === "PAUSED"
+    ) {
       this.pipes.forEach((p) => p.draw(this.ctx));
-      // Draw coins
       this.coinsList.forEach((c) => c.draw(this.ctx));
+      this.powerups.forEach((p) => p.draw(this.ctx));
+      this.particles.forEach((p) => p.draw(this.ctx));
     }
 
     this.drawGround();
 
+    // Bird positioning
     if (this.state === "MENU" || this.state === "ACHIEVEMENTS") {
       this.bird.x += (CONFIG.WIDTH / 2 - this.bird.x) * 0.05;
       this.bird.y = CONFIG.HEIGHT / 2 - 90 + Math.sin(Date.now() / 200) * 10;
@@ -1008,7 +1106,6 @@ export class Game {
       }
     }
 
-    // Hide the bird entirely if the settings menu is open
     if (this.state !== "SETTINGS") {
       this.bird.draw(this.ctx);
     }
@@ -1018,15 +1115,11 @@ export class Game {
 
     if (this.state === "MENU") {
       this.drawText(CONFIG.TITLE, 54, cy - 200, cx, "center", "#ffce00");
-
-      // 4 Buttons, perfectly stacked!
       this.drawButton("PLAY", cx, cy + 10, 200, 50, "#55aa55", "white", true);
       this.drawButton("ACHIEVEMENTS", cx, cy + 75, 200, 50, "#ff7a00");
       this.drawButton("CHARACTER", cx, cy + 140, 200, 50, "#4287f5");
-      this.drawButton("LEADERBOARD", cx, cy + 205, 200, 50, "#d1685a"); // New!
+      this.drawButton("LEADERBOARD", cx, cy + 205, 200, 50, "#d1685a");
 
-      // --- NEW: DRAW VERSION NUMBER ---
-      // Draws small, slightly transparent text in the bottom-right corner!
       this.drawText(
         CONFIG.VERSION,
         16,
@@ -1044,34 +1137,44 @@ export class Game {
       this.drawText("Tap or Space to start", 28, cy + 100);
     }
 
-    if (this.state === "PLAYING") {
+    if (this.state === "PLAYING" || this.state === "PAUSED") {
       this.drawText(this.score.toString(), 48, 80);
-      this.drawText(`LEVEL ${this.level}`, 22, CONFIG.HEIGHT - 30);
-      // DRAW WALLET BALANCE (Top Right)
-      this.drawText(
-        `💰 ${this.coins}`,
-        24,
-        40,
-        CONFIG.WIDTH - 20,
-        "right",
-        "#FFD700",
-      );
+      this.drawButton("II", 40, 40, 50, 50, "#ded895", "#543847");
+
+      if (this.activePowerUps.magnet > 0) {
+        this.ctx.fillStyle = "red";
+        this.ctx.fillRect(
+          10,
+          CONFIG.HEIGHT - 20,
+          (this.activePowerUps.magnet / 600) * 150,
+          10,
+        );
+      }
+      if (this.activePowerUps.shield > 0) {
+        this.ctx.fillStyle = "cyan";
+        this.ctx.fillRect(
+          10,
+          CONFIG.HEIGHT - 35,
+          (this.activePowerUps.shield / 600) * 150,
+          10,
+        );
+      }
+    }
+
+    if (this.state === "PAUSED") {
+      this.ctx.fillStyle = "rgba(0,0,0,0.5)";
+      this.ctx.fillRect(0, 0, CONFIG.WIDTH, CONFIG.HEIGHT);
+      this.drawText("PAUSED", 54, cy - 120, cx, "center", "#ffce00");
+
+      // Draw the two stacked buttons!
+      this.drawButton("RESUME", cx, cy - 40, 200, 60, "#55aa55", "white", true);
+      this.drawButton("QUIT", cx, cy + 40, 200, 60, "#d1685a");
     }
 
     if (this.state === "GAMEOVER") {
-      this.drawText("GAME OVER", 48, cy - 210);
       this.drawScorePanel();
 
-      this.drawButton(
-        "QUIT",
-        cx - 110,
-        cy + 160,
-        180,
-        60,
-        "#cd5c4d",
-        "white",
-        true,
-      );
+      // Removed the 600ms delay! Buttons draw instantly!
       this.drawButton(
         "RESTART",
         cx + 110,
@@ -1082,11 +1185,12 @@ export class Game {
         "white",
         true,
       );
+      this.drawButton("MENU", cx - 110, cy + 160, 180, 60, "#d1685a");
     }
 
-    this.drawToast(); // Draw pop-up over everything
+    this.drawToast();
 
     this.ctx.restore();
     requestAnimationFrame(this.loop);
-  }
-}
+  } // End of loop
+} // End of class
