@@ -301,6 +301,16 @@ export class Game {
 
   bindEvents() {
     const handlePointer = (e) => {
+      // --- UX FIX: Swallow the tap if a sidebar is open! ---
+      const sidebar = document.getElementById("sidebar");
+      const lbSidebar = document.getElementById("leaderboard-sidebar");
+      if (
+        (sidebar && sidebar.classList.contains("open")) ||
+        (lbSidebar && lbSidebar.classList.contains("open"))
+      ) {
+        return; // Stops the game from reacting to the touch!
+      }
+
       if (e.target !== this.canvas) return;
       if (e.type === "touchstart" && e.cancelable) e.preventDefault();
       if (e.type === "mousedown" && e.button !== 0) return;
@@ -362,7 +372,7 @@ export class Game {
     );
   }
 
-  processClick(mx, my) {
+  pprocessClick(mx, my) {
     let cx = CONFIG.WIDTH / 2;
     let cy = CONFIG.HEIGHT / 2;
 
@@ -370,9 +380,14 @@ export class Game {
       if (this.isClicked(mx, my, 40, 40, 50, 50)) {
         this.playSFX("flap");
         const sidebar = document.getElementById("sidebar");
+        const lbSidebar = document.getElementById("leaderboard-sidebar");
+
+        // --- UX FIX: Auto-close leaderboard when Profile opens ---
+        if (lbSidebar) lbSidebar.classList.remove("open");
+
         if (sidebar) sidebar.classList.add("open");
       }
-
+      
       let startY = cy - 40;
       if (this.isClicked(mx, my, cx, startY, 200, 50)) this.startFromMenu();
       if (this.isClicked(mx, my, cx, startY + 65, 200, 50))
@@ -835,14 +850,23 @@ export class Game {
     let drawBg = (imgIdx, alpha) => {
       let img = Assets.images[`bg_${imgIdx}`];
       this.ctx.globalAlpha = alpha / 255;
+
       if (img && img.complete) {
-        this.ctx.drawImage(
-          img,
-          0,
-          CONFIG.BG_OFFSET,
-          CONFIG.WIDTH,
-          CONFIG.HEIGHT - CONFIG.BG_OFFSET,
-        );
+        // --- MOBILE FIX: Perfect Aspect Ratio Scaling ---
+        let areaW = CONFIG.WIDTH;
+        let areaH = CONFIG.HEIGHT - CONFIG.BG_OFFSET;
+
+        // Find the math ratio needed to "cover" the screen without stretching
+        let scale = Math.max(areaW / img.width, areaH / img.height);
+
+        let drawW = img.width * scale;
+        let drawH = img.height * scale;
+
+        // Center the background perfectly on the screen
+        let drawX = (areaW - drawW) / 2;
+        let drawY = CONFIG.BG_OFFSET;
+
+        this.ctx.drawImage(img, drawX, drawY, drawW, drawH);
       }
     };
 
