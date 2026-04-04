@@ -7,14 +7,15 @@
       content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover"
     />
     <meta name="color-scheme" content="only light" />
-
     <title>Flappy Binnie</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap"
+      rel="stylesheet"
+    />
     <link rel="stylesheet" href="style.css" />
-
     <link rel="manifest" href="manifest.json" />
     <meta name="theme-color" content="#543847" />
     <link rel="apple-touch-icon" href="icon-192.png" />
-
     <link
       rel="icon"
       type="image/png"
@@ -31,7 +32,13 @@
           id="modal-username-input"
           placeholder="Enter Username..."
         />
-        <button id="modal-login-btn" class="action-btn">START FLYING</button>
+        <button
+          id="modal-login-btn"
+          class="action-btn"
+          style="margin-top: 10px"
+        >
+          START FLYING
+        </button>
         <button id="modal-guest-btn" class="text-btn">Play as Guest</button>
       </div>
     </div>
@@ -40,18 +47,14 @@
       <div class="shop-content">
         <button id="close-shop" class="close-btn">×</button>
         <h2 style="color: #4287f5">CHARACTER SHOP</h2>
-
         <div class="wallet-display">
           WALLET: <span id="shop-coins">0</span> 💰
         </div>
-
         <p style="font-weight: bold; color: #543847; margin-bottom: 30px">
           Wings
         </p>
         <div class="shop-grid" id="shop-grid"></div>
-
         <hr style="width: 100%; border: 2px solid #543847; margin: 15px 0" />
-
         <p style="font-weight: bold; color: #ff7a00; margin-bottom: 5px">
           PREMIUM & SPECIAL
         </p>
@@ -63,7 +66,6 @@
       <div class="shop-content">
         <button id="close-achievements" class="close-btn">×</button>
         <h2 style="color: #ff7a00">ACHIEVEMENTS</h2>
-
         <div
           class="wallet-display"
           style="background: #c2b280; color: #543847; font-size: 16px"
@@ -71,14 +73,11 @@
           UNLOCKED: <span id="ach-progress">0</span> /
           <span id="ach-total">18</span>
         </div>
-
         <div class="achievements-list" id="achievements-list"></div>
       </div>
     </div>
 
     <canvas id="gameCanvas"></canvas>
-
-    <div id="hamburger-btn" class="hamburger">☰</div>
 
     <div id="sidebar" class="sidebar">
       <button id="close-sidebar" class="close-btn">×</button>
@@ -90,18 +89,25 @@
           id="username-input"
           placeholder="Enter Username..."
         />
-        <button id="login-btn" class="action-btn">LOAD DATA</button>
-        <p id="login-status" class="status-text">Playing as: Guest</p>
-      </div>
 
-      <div id="leaderboard-sidebar" class="right-sidebar">
-        <div class="sidebar-header">
-          <h2 style="color: #ffce00; margin: 0; text-shadow: 2px 2px 0px #000">
-            LEADERBOARD
-          </h2>
-          <button id="close-leaderboard" class="close-btn">×</button>
+        <div style="display: flex; gap: 5px; width: 100%">
+          <button
+            id="login-btn"
+            class="action-btn"
+            style="font-size: 10px; padding: 12px 5px"
+          >
+            LOAD
+          </button>
+          <button
+            id="rename-btn"
+            class="success-btn"
+            style="font-size: 10px; padding: 12px 5px"
+          >
+            RENAME
+          </button>
         </div>
-        <div id="leaderboard-list" class="leaderboard-list"></div>
+
+        <p id="login-status" class="status-text">Playing as: Guest</p>
       </div>
 
       <hr />
@@ -124,6 +130,16 @@
       </div>
     </div>
 
+    <div id="leaderboard-sidebar" class="right-sidebar">
+      <div class="sidebar-header">
+        <h2 style="color: #ffce00; margin: 0; text-shadow: 2px 2px 0px #000">
+          LEADERBOARD
+        </h2>
+        <button id="close-leaderboard" class="close-btn">×</button>
+      </div>
+      <div id="leaderboard-list" class="leaderboard-list"></div>
+    </div>
+
     <div id="installToast" class="install-toast">
       <div class="toast-content">
         <img src="assets/charIMG/ribinie.png" class="toast-icon" alt="Icon" />
@@ -141,13 +157,11 @@
     <div id="charMenuUI" class="hidden">
       <div class="char-panel">
         <h2>CUSTOM BIRD</h2>
-
         <div class="crop-container">
           <video id="cameraFeed" autoplay playsinline class="hidden"></video>
           <canvas id="cropCanvas" width="300" height="300"></canvas>
           <div class="crop-overlay"></div>
         </div>
-
         <div class="controls">
           <label for="zoomSlider">Zoom:</label>
           <input
@@ -159,7 +173,6 @@
             value="1"
           />
         </div>
-
         <div class="btn-group">
           <button id="btnCamera" class="action-btn">📷 CAMERA</button>
           <label for="imageUpload" class="action-btn upload-btn"
@@ -167,7 +180,6 @@
           >
           <input type="file" id="imageUpload" accept="image/*" class="hidden" />
         </div>
-
         <div class="btn-group bottom-btns">
           <button id="btnCancelChar" class="danger-btn">CANCEL</button>
           <button id="btnSaveChar" class="success-btn">SAVE FACE</button>
@@ -175,6 +187,7 @@
         </div>
       </div>
     </div>
+
     <script type="module" src="js/character.js"></script>
     <script type="module" src="js/main.js"></script>
     <script type="module" src="js/database.js"></script>

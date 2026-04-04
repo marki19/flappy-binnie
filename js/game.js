@@ -3,24 +3,19 @@ import { Assets } from "./assets.js";
 import { Bird, Pipe, Coin, Particle, PowerUp } from "./sprites.js";
 import { CharacterMenu } from "./character.js";
 import { AchievementsMenu } from "./achievements.js";
-import { audioCtx } from "./assets.js"; // Make sure to add this import at the very top of game.js!
+import { audioCtx } from "./assets.js";
 import { savePlayerData } from "./database.js";
 
 export class Game {
-  constructor(canvas, ctx, uid, playerName, cloudData) {
+  constructor(canvas, ctx, playerName, cloudData) {
     this.canvas = canvas;
     this.ctx = ctx;
-    this.uid = uid;
     this.username = playerName;
 
-    // Use cloud highscore if it's better than the local one
-
-    const localHigh =
-      parseInt(localStorage.getItem("flappyBinnieHighScore")) || 0;
-    this.highScore = Math.max(localHigh, cloudData?.highScore || 0);
-
-    // Initialize coins from the cloud (or 0)
+    // --- PURE CLOUD TRUST ---
+    this.highScore = cloudData?.highScore || 0;
     this.coins = cloudData?.coins || 0;
+    this.unlockedAchievements = cloudData?.unlockedAchievements || [];
 
     this.settings = JSON.parse(
       localStorage.getItem("flappyBinnieSettings"),
@@ -53,9 +48,6 @@ export class Game {
     this.wingIndex = this.wingStyles.indexOf(savedWing);
     if (this.wingIndex === -1) this.wingIndex = 0;
 
-    // --- NEW: ACHIEVEMENT TRACKERS ---
-    this.unlockedAchievements =
-      JSON.parse(localStorage.getItem("flappyBinnieAchievements")) || [];
     this.activeToast = null;
     this.toastTimer = 0;
 
@@ -68,33 +60,20 @@ export class Game {
     requestAnimationFrame(this.loop);
   }
 
-  // --- NEW: DYNAMIC DATA INJECTION ---
-  // This allows the Sidebar HTML to update the game without refreshing the page!
-  updatePlayerData(uid, playerName, cloudData) {
-    this.uid = uid;
+  updatePlayerData(playerName, cloudData) {
     this.username = playerName;
-
-    const localHigh =
-      parseInt(localStorage.getItem("flappyBinnieHighScore")) || 0;
-    this.highScore = Math.max(localHigh, cloudData?.highScore || 0);
+    this.highScore = cloudData?.highScore || 0;
     this.coins = cloudData?.coins || 0;
-
-    if (cloudData?.unlockedAchievements) {
-      this.unlockedAchievements = cloudData.unlockedAchievements;
-      localStorage.setItem(
-        "flappyBinnieAchievements",
-        JSON.stringify(this.unlockedAchievements),
-      );
-    }
+    this.unlockedAchievements = cloudData?.unlockedAchievements || [];
   }
 
   resetGameVars() {
     this.bird = new Bird();
     this.pipes = [];
     this.coinsList = [];
-    this.particles = []; // NEW
-    this.powerups = []; // NEW
-    this.activePowerUps = { shield: 0, magnet: 0 }; // NEW
+    this.particles = [];
+    this.powerups = [];
+    this.activePowerUps = { shield: 0, magnet: 0 };
     this.score = 0;
     this.level = 1;
     this.currentSpeed = CONFIG.PIPE_SPEED;
@@ -126,11 +105,10 @@ export class Game {
 
     this.state = "PLAYING";
     this.applySettings();
-
     this.playSFX("start");
     this.spawnPipes();
     this.bird.flap();
-    this.unlockAchievement("first_flap"); // Achievement Check
+    this.unlockAchievement("first_flap");
   }
 
   prepareRound() {
@@ -142,60 +120,40 @@ export class Game {
   resetToMenu() {
     this.state = "MENU";
     this.resetGameVars();
-    if (Assets.audio.music) {
-      if (this.bgmSource) {
-        this.bgmSource.stop();
-        this.bgmSource = null;
-      }
+    if (Assets.audio.music && this.bgmSource) {
+      this.bgmSource.stop();
+      this.bgmSource = null;
     }
   }
 
   applySettings() {
     localStorage.setItem("flappyBinnieSettings", JSON.stringify(this.settings));
-
-    // Play music using our new Web Audio function if enabled
     if (Assets.audio.music) {
       if (
         this.settings.bgm &&
         (this.state === "PLAYING" || this.state === "GET_READY")
       ) {
-        if (!this.bgmSource) {
-          this.playSFX("music");
-        }
-      } else {
-        // Web Audio API: We stop the active source node
-        if (this.bgmSource) {
-          try {
-            this.bgmSource.stop();
-          } catch (e) {}
-          this.bgmSource = null;
-        }
+        if (!this.bgmSource) this.playSFX("music");
+      } else if (this.bgmSource) {
+        try {
+          this.bgmSource.stop();
+        } catch (e) {}
+        this.bgmSource = null;
       }
     }
   }
 
-  // ... later in your game class ...
-
   playSFX(key) {
-    console.log("GAME DEMANDED TO PLAY AUDIO", key);
-
-    // 1. Check if SFX are enabled in settings
     if (this.settings && !this.settings.sfx && key !== "music") return;
     if (this.settings && !this.settings.bgm && key === "music") return;
 
     let buffer = Assets.audio[key];
     if (buffer) {
-      if (audioCtx.state === "suspended") {
-        audioCtx.resume();
-      }
+      if (audioCtx.state === "suspended") audioCtx.resume();
 
       let source = audioCtx.createBufferSource();
       source.buffer = buffer;
-
       let gainNode = audioCtx.createGain();
-
-      // --- THE TRIM SETTINGS ---
-      // 'trimAmount' is how many seconds to skip at the beginning of the file!
       let trimAmount = 0;
 
       if (key === "music") {
@@ -205,24 +163,24 @@ export class Game {
           } catch (e) {}
         }
         gainNode.gain.value = 0.5;
-        trimAmount = 1; // Skips first 1 seconds
+        trimAmount = 1;
         source.loop = true;
         this.bgmSource = source;
       } else if (key === "start") {
         gainNode.gain.value = 1.0;
-        trimAmount = 0.5; // Skips first 0.2 seconds (Adjust this to fix the delay!)
+        trimAmount = 0.5;
       } else if (key === "flap") {
         gainNode.gain.value = 0.7;
-        trimAmount = 0.05; // Skips a tiny 0.05 seconds to make tapping feel instantly crisp
+        trimAmount = 0.05;
       } else if (key === "crash") {
         gainNode.gain.value = 1;
-        trimAmount = 0.1; // Skips first 0.1 seconds
+        trimAmount = 0.1;
       } else if (key === "coin") {
         gainNode.gain.value = 1.5;
-        trimAmount = 0.2; // Skips first 0.2 seconds
+        trimAmount = 0.2;
       } else if (key === "error") {
-        gainNode.gain.value = 1.0; // Normal volume
-        trimAmount = 0.2; // Play from the very beginning
+        gainNode.gain.value = 1.0;
+        trimAmount = 0.2;
       }
 
       if (this.settings && this.settings.volume !== undefined) {
@@ -231,35 +189,24 @@ export class Game {
 
       source.connect(gainNode);
       gainNode.connect(audioCtx.destination);
-
-      // PLAY THE SOUND: start(whenToStart, offsetInSeconds)
-      // This plays instantly (0), but starts the file at your trimAmount!
       source.start(0, trimAmount);
     }
   }
 
-  // --- NEW: ACHIEVEMENT ENGINE ---
   unlockAchievement(id) {
     if (!this.unlockedAchievements.includes(id)) {
       this.unlockedAchievements.push(id);
-      localStorage.setItem(
-        "flappyBinnieAchievements",
-        JSON.stringify(this.unlockedAchievements),
-      );
-
       let ach = CONFIG.ACHIEVEMENTS.find((a) => a.id === id);
       if (ach) {
         this.activeToast = ach.name;
-        this.toastTimer = 120; // Show toast for 2 seconds (60fps * 2)
-        this.playSFX("start"); // Ding sound
+        this.toastTimer = 120;
+        this.playSFX("start");
       }
     }
   }
 
   checkLiveAchievements() {
-    // FIX: Check whichever is higher—the current run, or the saved high score!
     let best = Math.max(this.score, this.highScore);
-
     if (best >= 10) this.unlockAchievement("score_10");
     if (best >= 20) this.unlockAchievement("score_20");
     if (best >= 30) this.unlockAchievement("score_30");
@@ -270,10 +217,7 @@ export class Game {
     if (best >= 80) this.unlockAchievement("score_80");
     if (best >= 90) this.unlockAchievement("score_90");
     if (best >= 100) this.unlockAchievement("score_100");
-
     if (this.level >= 5) this.unlockAchievement("max_speed");
-    if (localStorage.getItem("flappyBinnieCustomFace"))
-      this.unlockAchievement("custom_face");
   }
 
   spawnPipes() {
@@ -281,15 +225,8 @@ export class Game {
     let maxY = CONFIG.HEIGHT - CONFIG.GROUND_HEIGHT - 200;
     let exactCenterX = CONFIG.WIDTH + 50 + CONFIG.PIPE_WIDTH / 2;
 
-    if (!this.lastPipeY) {
-      this.lastPipeY = (minY + maxY) / 2;
-    }
-
-    // --- DYNAMIC DELTA ---
-    // If we are on mobile (WIDTH is 450), limit the vertical jump to 130px.
-    // If we are on desktop (WIDTH is 1080), allow larger 180px jumps.
+    if (!this.lastPipeY) this.lastPipeY = (minY + maxY) / 2;
     let maxDelta = CONFIG.WIDTH === 450 ? 130 : 180;
-
     let shift = Math.random() * maxDelta * 2 - maxDelta;
     let gapY = this.lastPipeY + shift;
 
@@ -324,14 +261,11 @@ export class Game {
       ),
     );
 
-    // 70% chance to spawn SOMETHING
     if (Math.random() > 0.3) {
       if (Math.random() > 0.85) {
-        // 15% chance it's a Power-Up instead of a coin!
         let type = Math.random() > 0.5 ? "magnet" : "shield";
         this.powerups.push(new PowerUp(exactCenterX, gapY, type));
       } else {
-        // Otherwise, normal coin
         this.coinsList.push(new Coin(exactCenterX, gapY));
       }
     }
@@ -348,34 +282,27 @@ export class Game {
       if (this.score > this.highScore) {
         this.highScore = this.score;
         this.isNewBest = true;
-        localStorage.setItem("flappyBinnieHighScore", this.highScore);
       }
-      // CRITICAL FIX: Safely stop the music
       if (this.bgmSource) {
         try {
           this.bgmSource.stop();
         } catch (e) {}
         this.bgmSource = null;
       }
+
       savePlayerData(
-        this.uid,
         this.username,
         this.highScore,
         this.coins,
-        this.unlockedAchievements, // You can also save unlocked wings here later
+        this.unlockedAchievements,
       );
     }
   }
 
   bindEvents() {
     const handlePointer = (e) => {
-      // Ignore clicks/touches if they hit the HTML UI instead of the Canvas
       if (e.target !== this.canvas) return;
-
-      // CRITICAL FIX: Prevent mobile 'touchstart' from triggering a fake 'mousedown' a millisecond later!
       if (e.type === "touchstart" && e.cancelable) e.preventDefault();
-
-      // Check if it's a mouse event and ensure it is ONLY the left click (button 0)
       if (e.type === "mousedown" && e.button !== 0) return;
       if (e.cancelable && e.type !== "mousedown") e.preventDefault();
 
@@ -401,12 +328,11 @@ export class Game {
     window.addEventListener("touchstart", handlePointer, { passive: false });
 
     window.addEventListener("keydown", (e) => {
-      if (e.code !== "Space") return;
+      if (document.activeElement.tagName === "INPUT") return;
 
-      // Prevent Spacebar from triggering game logic if Character UI is open
+      if (e.code !== "Space") return;
       const charMenu = document.getElementById("charMenuUI");
       if (charMenu && !charMenu.classList.contains("hidden")) return;
-
       if (e.cancelable) e.preventDefault();
 
       if (this.state === "MENU") {
@@ -418,6 +344,9 @@ export class Game {
       } else if (this.state === "PLAYING") {
         this.playSFX("flap");
         this.bird.flap();
+      } else if (this.state === "PAUSED") {
+        this.state = "PLAYING";
+        this.playSFX("flap");
       } else if (this.state === "GAMEOVER") {
         if (Date.now() - this.deathTime > 600) this.prepareRound();
       }
@@ -438,24 +367,24 @@ export class Game {
     let cy = CONFIG.HEIGHT / 2;
 
     if (this.state === "MENU") {
-      if (this.state === "MENU") {
-        let cx = CONFIG.WIDTH / 2;
-        let cy = CONFIG.HEIGHT / 2;
-
-        // THESE ARE THE ONLY 4 BUTTONS ALLOWED NOW:
-        if (this.isClicked(mx, my, cx, cy + 10, 200, 50)) this.startFromMenu();
-        if (this.isClicked(mx, my, cx, cy + 75, 200, 50))
-          AchievementsMenu.open(this);
-        if (this.isClicked(mx, my, cx, cy + 140, 200, 50))
-          CharacterMenu.open(this);
-
-        if (this.isClicked(mx, my, cx, cy + 205, 200, 50)) {
-          this.playSFX("flap");
-          if (window.openLeaderboard) window.openLeaderboard();
-        }
+      if (this.isClicked(mx, my, 40, 40, 50, 50)) {
+        this.playSFX("flap");
+        const sidebar = document.getElementById("sidebar");
+        if (sidebar) sidebar.classList.add("open");
       }
-      // Wing selection arrows
-      if (this.isClicked(mx, my, cx - 120, cy - 90, 50, 50)) {
+
+      let startY = cy - 40;
+      if (this.isClicked(mx, my, cx, startY, 200, 50)) this.startFromMenu();
+      if (this.isClicked(mx, my, cx, startY + 65, 200, 50))
+        AchievementsMenu.open(this);
+      if (this.isClicked(mx, my, cx, startY + 130, 200, 50))
+        CharacterMenu.open(this);
+      if (this.isClicked(mx, my, cx, startY + 195, 200, 50)) {
+        this.playSFX("flap");
+        if (window.openLeaderboard) window.openLeaderboard();
+      }
+
+      if (this.isClicked(mx, my, cx - 120, cy - 120, 50, 50)) {
         this.wingIndex =
           (this.wingIndex - 1 + this.wingStyles.length) %
           this.wingStyles.length;
@@ -465,7 +394,7 @@ export class Game {
         );
         this.playSFX("flap");
       }
-      if (this.isClicked(mx, my, cx + 120, cy - 90, 50, 50)) {
+      if (this.isClicked(mx, my, cx + 120, cy - 120, 50, 50)) {
         this.wingIndex = (this.wingIndex + 1) % this.wingStyles.length;
         localStorage.setItem(
           "flappyBinnieWingStyle",
@@ -480,34 +409,30 @@ export class Game {
       this.bird.flap();
       this.unlockAchievement("first_flap");
     } else if (this.state === "PLAYING") {
-      // Did they click the Pause Button (Top Left)?
-      if (this.isClicked(mx, my, 40, 40, 50, 50)) {
+      if (this.isClicked(mx, my, CONFIG.WIDTH - 40, 40, 50, 50)) {
         this.state = "PAUSED";
         this.playSFX("start");
       } else {
         this.playSFX("flap");
         this.bird.flap();
-        this.spawnParticles(this.bird.x, this.bird.y, "#ffffff", "feather", 5); // FEATHERS!
+        this.spawnParticles(this.bird.x, this.bird.y, "#ffffff", "feather", 5);
       }
     } else if (this.state === "PAUSED") {
-      // 1. We shifted the Resume button up slightly
-      if (this.isClicked(mx, my, cx, cy - 40, 200, 60)) {
+      if (this.isClicked(mx, my, cx, cy - 20, 200, 50)) {
         this.state = "PLAYING";
         this.playSFX("flap");
       }
-      // 2. We added a new QUIT TO MENU button below it!
-      if (this.isClicked(mx, my, cx, cy + 40, 200, 60)) {
+      if (this.isClicked(mx, my, cx, cy + 50, 200, 50)) {
         this.resetToMenu();
         this.playSFX("flap");
       }
     } else if (this.state === "GAMEOVER") {
-      // 3. Removed the 600ms delay! Buttons are instantly clickable!
-      if (this.isClicked(mx, my, cx + 110, cy + 160, 180, 60))
+      if (this.isClicked(mx, my, cx + 100, cy + 140, 180, 50))
         this.prepareRound();
-      if (this.isClicked(mx, my, cx - 110, cy + 160, 180, 60))
+      if (this.isClicked(mx, my, cx - 100, cy + 140, 180, 50))
         this.resetToMenu();
     }
-  } // <-- End of processClick function
+  }
 
   checkCollisions() {
     let offset = 15;
@@ -524,12 +449,11 @@ export class Game {
         by < bounds.y + bounds.h &&
         by + bh > bounds.y
       ) {
-        // SHIELD LOGIC!
         if (this.activePowerUps.shield > 0) {
-          p.markedForDeletion = true; // Smash the pipe!
-          this.activePowerUps.shield = 0; // Break the shield
+          p.markedForDeletion = true;
+          this.activePowerUps.shield = 0;
           this.bird.isShielded = false;
-          this.playSFX("crash");
+          this.playSFX("error");
           this.spawnParticles(
             p.x,
             p.y + (p.isTop ? p.h : 0),
@@ -537,9 +461,9 @@ export class Game {
             "smoke",
             30,
           );
-          return false; // You survived!
+          return false;
         }
-        return true; // Crashed into pipe
+        return true;
       }
     }
     return false;
@@ -552,11 +476,18 @@ export class Game {
     x = CONFIG.WIDTH / 2,
     align = "center",
     color = "white",
+    hasShadow = true,
   ) {
     this.ctx.textAlign = align;
-    this.ctx.font = `bold ${size}px Courier`;
-    this.ctx.fillStyle = "black";
-    this.ctx.fillText(text, x + 2, y + 2);
+    this.ctx.textBaseline = "middle";
+    this.ctx.font = `${size}px 'Press Start 2P', Courier`;
+
+    if (hasShadow) {
+      let shadowOffset = Math.max(2, Math.floor(size / 10));
+      this.ctx.fillStyle = "rgba(0, 0, 0, 0.8)";
+      this.ctx.fillText(text, x + shadowOffset, y + shadowOffset);
+    }
+
     this.ctx.fillStyle = color;
     this.ctx.fillText(text, x, y);
   }
@@ -567,167 +498,128 @@ export class Game {
     y,
     w,
     h,
-    bg = "#ded895",
-    fg = "white",
-    animatePulse = false,
+    bgColor,
+    textColor = "white",
+    isPulsing = false,
   ) {
-    this.ctx.save();
-
     let scale = 1;
-    // If animatePulse is true, use sine wave math to gently scale the button up and down
-    if (animatePulse) {
-      scale = 1 + Math.sin(Date.now() / 200) * 0.05; // 5% scale pulse
-    }
+    if (isPulsing) scale = 1 + Math.sin(Date.now() / 150) * 0.05;
 
-    // Move to the button's center, scale it, then draw it around that center point
-    this.ctx.translate(x, y);
-    this.ctx.scale(scale, scale);
+    let drawW = w * scale;
+    let drawH = h * scale;
+    let drawX = x - drawW / 2;
+    let drawY = y - drawH / 2;
 
-    this.ctx.fillStyle = bg;
-    this.ctx.strokeStyle = "#543847";
+    this.ctx.save();
+    this.ctx.fillStyle = "rgba(0, 0, 0, 0.6)";
+    this.ctx.fillRect(drawX + 6, drawY + 6, drawW, drawH);
+    this.ctx.fillStyle = bgColor;
+    this.ctx.fillRect(drawX, drawY, drawW, drawH);
+    this.ctx.fillStyle = "rgba(255, 255, 255, 0.3)";
+    this.ctx.fillRect(drawX, drawY, drawW, 4);
+    this.ctx.fillRect(drawX, drawY, 4, drawH);
+    this.ctx.fillStyle = "rgba(0, 0, 0, 0.3)";
+    this.ctx.fillRect(drawX, drawY + drawH - 4, drawW, 4);
+    this.ctx.fillRect(drawX + drawW - 4, drawY, 4, drawH);
+    this.ctx.strokeStyle = "black";
     this.ctx.lineWidth = 4;
-    if (this.ctx.roundRect) {
-      this.ctx.beginPath();
-      this.ctx.roundRect(-w / 2, -h / 2, w, h, 10);
-      this.ctx.fill();
-      this.ctx.stroke();
-    } else {
-      this.ctx.fillRect(-w / 2, -h / 2, w, h);
-      this.ctx.strokeRect(-w / 2, -h / 2, w, h);
-    }
-
-    // Draw the text (adjusted for the new relative 0,0 center)
-    this.drawText(text, Math.min(28, h * 0.6), h * 0.15, 0, "center", fg);
+    this.ctx.strokeRect(drawX, drawY, drawW, drawH);
     this.ctx.restore();
+
+    let textSize = h * 0.25;
+    this.drawText(text, textSize, y + 2, x, "center", textColor, false);
   }
 
-  //DRAW MEDAL
-  drawMedal(x, y, targetScore) {
-    let colors = null;
-    // Define the score requirements for each medal
-    if (targetScore >= 40)
-      colors = { main: "#e5e4e2", border: "#b2b2b2", name: "PLATINUM" };
-    else if (targetScore >= 30)
-      colors = { main: "#ffd700", border: "#d4af37", name: "GOLD" };
-    else if (targetScore >= 20)
-      colors = { main: "#c0c0c0", border: "#a9a9a9", name: "SILVER" };
-    else if (targetScore >= 10)
-      colors = { main: "#cd7f32", border: "#8b4513", name: "BRONZE" };
-
-    // If the high score is under 10, they haven't earned a medal yet, so draw nothing.
-    if (!colors) return;
-
-    const ctx = this.ctx;
-    ctx.save();
-
-    // Draw the Text Label above the medal
-    this.drawText(`BEST: ${colors.name}`, 18, y - 45, x, "center", colors.main);
-
-    // 1. Draw the Red Ribbon
-    ctx.fillStyle = "#d32f2f";
-    ctx.beginPath();
-    ctx.moveTo(x - 15, y - 25);
-    ctx.lineTo(x + 15, y - 25);
-    ctx.lineTo(x + 20, y + 15);
-    ctx.lineTo(x, y + 5);
-    ctx.lineTo(x - 20, y + 15);
-    ctx.fill();
-
-    // 2. Draw the Outer Medal Border
-    ctx.beginPath();
-    ctx.arc(x, y, 22, 0, Math.PI * 2);
-    ctx.fillStyle = colors.border;
-    ctx.fill();
-
-    // 3. Draw the Inner Medal Face
-    ctx.beginPath();
-    ctx.arc(x, y, 18, 0, Math.PI * 2);
-    ctx.fillStyle = colors.main;
-    ctx.fill();
-
-    // 4. Draw a shiny glare on the top-left to make it look metallic!
-    ctx.beginPath();
-    ctx.arc(x - 6, y - 6, 6, 0, Math.PI * 2);
-    ctx.fillStyle = "rgba(255, 255, 255, 0.5)";
-    ctx.fill();
-
-    ctx.restore();
-  }
-
-  // --- NEW: MEDAL SYSTEM ---
   drawScorePanel() {
     let cx = CONFIG.WIDTH / 2;
     let cy = CONFIG.HEIGHT / 2;
-    const panelW = 380; // Shrunk from 440 to fit mobile
+    const panelW = 380;
     const panelH = 210;
     const panelX = cx - panelW / 2;
     const panelY = cy - panelH / 2 - 40;
 
     this.ctx.save();
     this.ctx.fillStyle = "rgba(0, 0, 0, 0.5)";
-    if (this.ctx.roundRect) {
-      this.ctx.beginPath();
-      this.ctx.roundRect(panelX + 8, panelY + 8, panelW, panelH, 20);
-      this.ctx.fill();
-    }
+    this.ctx.fillRect(panelX + 8, panelY + 8, panelW, panelH);
 
     this.ctx.fillStyle = "#ded895";
     this.ctx.strokeStyle = "#543847";
     this.ctx.lineWidth = 6;
-    if (this.ctx.roundRect) {
-      this.ctx.beginPath();
-      this.ctx.roundRect(panelX, panelY, panelW, panelH, 20);
-      this.ctx.fill();
-      this.ctx.stroke();
-    }
+    this.ctx.fillRect(panelX, panelY, panelW, panelH);
+    this.ctx.strokeRect(panelX, panelY, panelW, panelH);
 
-    // Left Side: Medal Box
     this.ctx.fillStyle = "rgba(0,0,0,0.05)";
-    if (this.ctx.roundRect) {
-      this.ctx.beginPath();
-      this.ctx.roundRect(panelX + 15, panelY + 15, 140, 180, 15);
-      this.ctx.fill();
-    }
+    this.ctx.fillRect(panelX + 15, panelY + 15, 140, 180);
 
-    // Right Side: Score Box
     this.ctx.fillStyle = "#c2b280";
-    if (this.ctx.roundRect) {
-      this.ctx.beginPath();
-      this.ctx.roundRect(panelX + 165, panelY + 15, 200, 180, 15);
-      this.ctx.fill();
-      this.ctx.stroke();
-    }
+    this.ctx.fillRect(panelX + 165, panelY + 15, 200, 180);
+    this.ctx.strokeRect(panelX + 165, panelY + 15, 200, 180);
 
-    this.drawText("SCORE", 22, panelY + 45, panelX + 265, "center", "#ff7a00");
+    let currentScoreStr = this.score.toString();
+    let bestScoreStr = this.highScore.toString();
+
+    let currentSize = Math.min(28, Math.floor(180 / currentScoreStr.length));
+    let bestSize = Math.min(24, Math.floor(180 / bestScoreStr.length));
+
     this.drawText(
-      this.score.toString(),
-      42,
-      panelY + 90,
+      "SCORE",
+      16,
+      panelY + 45,
+      panelX + 265,
+      "center",
+      "#ff7a00",
+      false,
+    );
+    this.drawText(
+      currentScoreStr,
+      currentSize,
+      panelY + 85,
       panelX + 265,
       "center",
       "white",
+      true,
     );
 
-    this.drawText("BEST", 22, panelY + 140, panelX + 265, "center", "#ff7a00");
     this.drawText(
-      this.highScore.toString(),
-      32,
-      panelY + 180,
+      "BEST",
+      16,
+      panelY + 135,
+      panelX + 265,
+      "center",
+      "#ff7a00",
+      false,
+    );
+    this.drawText(
+      bestScoreStr,
+      bestSize,
+      panelY + 175,
       panelX + 265,
       "center",
       "white",
+      true,
     );
-    if (this.isNewBest)
+
+    if (this.isNewBest) {
       this.drawText(
         "NEW!",
-        18,
-        panelY + 125,
+        10,
+        panelY + 115,
         panelX + 325,
         "center",
         "#ff0000",
+        false,
       );
+    }
 
-    this.drawText("MEDAL", 22, panelY + 45, panelX + 85, "center", "#543847");
+    this.drawText(
+      "MEDAL",
+      16,
+      panelY + 45,
+      panelX + 85,
+      "center",
+      "#543847",
+      false,
+    );
 
     let medalColor = null;
     let medalName = "";
@@ -785,7 +677,15 @@ export class Game {
       this.ctx.fillStyle = "rgba(255,255,255,0.6)";
       this.ctx.fill();
 
-      this.drawText(medalName, 12, panelY + 180, mx, "center", medalColor);
+      this.drawText(
+        medalName,
+        10,
+        panelY + 180,
+        mx,
+        "center",
+        medalColor,
+        true,
+      );
     } else {
       this.ctx.fillStyle = "rgba(0,0,0,0.1)";
       this.ctx.strokeStyle = "rgba(0,0,0,0.2)";
@@ -809,25 +709,19 @@ export class Game {
     this.ctx.fillStyle = "#ded895";
     this.ctx.strokeStyle = "#543847";
     this.ctx.lineWidth = 6;
-    if (this.ctx.roundRect) {
-      this.ctx.beginPath();
-      // Mobile-sized box
-      this.ctx.roundRect(cx - 170, cy - 160, 340, 350, 20);
-      this.ctx.fill();
-      this.ctx.stroke();
-    }
+    this.ctx.fillRect(cx - 170, cy - 160, 340, 350);
+    this.ctx.strokeRect(cx - 170, cy - 160, 340, 350);
 
-    this.drawText("SETTINGS", 32, cy - 100, cx, "center", "white");
+    this.drawText("SETTINGS", 24, cy - 100, cx, "center", "white");
 
-    this.drawText("Music:", 24, cy - 40, cx - 120, "left", "white");
-    this.drawText("SFX:", 24, cy + 30, cx - 120, "left", "white");
-    this.drawText("Vol:", 24, cy + 100, cx - 120, "left", "white");
+    this.drawText("Music:", 16, cy - 40, cx - 120, "left", "white");
+    this.drawText("SFX:", 16, cy + 30, cx - 120, "left", "white");
+    this.drawText("Vol:", 16, cy + 100, cx - 120, "left", "white");
 
-    // Smaller, repositioned buttons
     this.drawButton(
       this.settings.bgm ? "ON" : "OFF",
       cx + 80,
-      cy - 50,
+      cy - 40,
       80,
       45,
       this.settings.bgm ? "#55aa55" : "#aa5555",
@@ -835,21 +729,22 @@ export class Game {
     this.drawButton(
       this.settings.sfx ? "ON" : "OFF",
       cx + 80,
-      cy + 20,
+      cy + 30,
       80,
       45,
       this.settings.sfx ? "#55aa55" : "#aa5555",
     );
-    this.drawButton("-", cx + 20, cy + 90, 45, 45, "#c2b280");
+
+    this.drawButton("-", cx + 20, cy + 100, 45, 45, "#c2b280");
     this.drawText(
       Math.round(this.settings.volume * 10).toString(),
-      24,
+      16,
       cy + 100,
       cx + 75,
       "center",
       "white",
     );
-    this.drawButton("+", cx + 130, cy + 90, 45, 45, "#c2b280");
+    this.drawButton("+", cx + 130, cy + 100, 45, 45, "#c2b280");
 
     this.drawButton("BACK", cx, cy + 150, 160, 50, "#d1685a");
   }
@@ -892,8 +787,6 @@ export class Game {
   drawToast() {
     if (this.toastTimer > 0) {
       this.toastTimer--;
-
-      // Slide down/up animation math
       let cy = Math.min(60, 60 - (this.toastTimer - 160) * 5);
       if (this.toastTimer < 20) cy = 60 - (20 - this.toastTimer) * 5;
 
@@ -905,25 +798,17 @@ export class Game {
       this.ctx.lineWidth = 4;
       let cx = CONFIG.WIDTH / 2;
 
-      if (this.ctx.roundRect) {
-        this.ctx.beginPath();
-        // SHRUNK the width to 380 so it fits beautifully inside the 450 mobile screen!
-        this.ctx.roundRect(cx - 190, cy - 30, 380, 60, 20);
-        this.ctx.fill();
-        this.ctx.stroke();
-      } else {
-        this.ctx.fillRect(cx - 190, cy - 30, 380, 60);
-        this.ctx.strokeRect(cx - 190, cy - 30, 380, 60);
-      }
+      this.ctx.fillRect(cx - 190, cy - 30, 380, 60);
+      this.ctx.strokeRect(cx - 190, cy - 30, 380, 60);
 
-      // Shrunk the text size slightly to ensure long achievement names fit
       this.drawText(
         `🏆 UNLOCKED: ${this.activeToast}`,
-        18,
-        cy + 6,
+        12,
+        cy + 2,
         cx,
         "center",
         "#543847",
+        false,
       );
       this.ctx.restore();
     }
@@ -945,12 +830,12 @@ export class Game {
 
     this.ctx.save();
     this.ctx.translate(dx, dy);
-
     this.ctx.clearRect(0, 0, CONFIG.WIDTH, CONFIG.HEIGHT);
+
     let drawBg = (imgIdx, alpha) => {
       let img = Assets.images[`bg_${imgIdx}`];
       this.ctx.globalAlpha = alpha / 255;
-      if (img && img.complete)
+      if (img && img.complete) {
         this.ctx.drawImage(
           img,
           0,
@@ -958,6 +843,7 @@ export class Game {
           CONFIG.WIDTH,
           CONFIG.HEIGHT - CONFIG.BG_OFFSET,
         );
+      }
     };
 
     drawBg(this.currentBg, 255);
@@ -972,11 +858,9 @@ export class Game {
     }
     this.ctx.globalAlpha = 1.0;
 
-    // --- GAME LOGIC UPDATES ---
     if (this.state === "PLAYING") {
       this.checkLiveAchievements();
 
-      // Magnet Logic
       if (this.activePowerUps.magnet > 0) {
         this.activePowerUps.magnet--;
         this.coinsList.forEach((c) => {
@@ -992,7 +876,6 @@ export class Game {
       if (this.activePowerUps.shield > 0) this.activePowerUps.shield--;
       if (this.activePowerUps.shield === 0) this.bird.isShielded = false;
 
-      // Update Coins
       this.coinsList.forEach((c) => {
         c.update(this.currentSpeed);
         let dist = Math.hypot(this.bird.x - c.x, this.bird.y - c.y);
@@ -1005,7 +888,6 @@ export class Game {
       });
       this.coinsList = this.coinsList.filter((c) => !c.markedForDeletion);
 
-      // Update PowerUps
       this.powerups.forEach((p) => {
         p.update(this.currentSpeed);
         let dist = Math.hypot(this.bird.x - p.x, this.bird.y - p.y);
@@ -1029,11 +911,9 @@ export class Game {
       });
       this.powerups = this.powerups.filter((p) => !p.markedForDeletion);
 
-      // Update Particles
       this.particles.forEach((p) => p.update());
       this.particles = this.particles.filter((p) => p.life > 0);
 
-      // Score Milestones
       if (
         this.score > 0 &&
         this.score % 10 === 0 &&
@@ -1047,7 +927,6 @@ export class Game {
         this.bgAlpha = 0;
       }
 
-      // Physics
       this.level = Math.min(5, Math.floor(this.score / 10) + 1);
       this.currentSpeed = Math.min(
         CONFIG.PIPE_SPEED + Math.floor(this.score / 10),
@@ -1073,11 +952,9 @@ export class Game {
       });
       this.pipes = this.pipes.filter((p) => !p.markedForDeletion);
     }
-    // --- END OF GAME LOGIC UPDATES ---
 
     if (this.state === "GAMEOVER") this.bird.update();
 
-    // --- DRAWING EVERYTHING ---
     if (
       this.state === "PLAYING" ||
       this.state === "GAMEOVER" ||
@@ -1091,10 +968,9 @@ export class Game {
 
     this.drawGround();
 
-    // Bird positioning
     if (this.state === "MENU" || this.state === "ACHIEVEMENTS") {
       this.bird.x += (CONFIG.WIDTH / 2 - this.bird.x) * 0.05;
-      this.bird.y = CONFIG.HEIGHT / 2 - 90 + Math.sin(Date.now() / 200) * 10;
+      this.bird.y = CONFIG.HEIGHT / 2 - 120 + Math.sin(Date.now() / 200) * 10;
     } else if (this.state === "GET_READY") {
       this.bird.x = 200;
       this.bird.y = CONFIG.HEIGHT / 2 + Math.sin(Date.now() / 200) * 10;
@@ -1106,46 +982,69 @@ export class Game {
       }
     }
 
-    if (this.state !== "SETTINGS") {
-      this.bird.draw(this.ctx);
-    }
+    if (this.state !== "SETTINGS") this.bird.draw(this.ctx);
 
     let cx = CONFIG.WIDTH / 2;
     let cy = CONFIG.HEIGHT / 2;
 
     if (this.state === "MENU") {
-      this.drawText(CONFIG.TITLE, 54, cy - 200, cx, "center", "#ffce00");
-      this.drawButton("PLAY", cx, cy + 10, 200, 50, "#55aa55", "white", true);
-      this.drawButton("ACHIEVEMENTS", cx, cy + 75, 200, 50, "#ff7a00");
-      this.drawButton("CHARACTER", cx, cy + 140, 200, 50, "#4287f5");
-      this.drawButton("LEADERBOARD", cx, cy + 205, 200, 50, "#d1685a");
+      this.drawText(CONFIG.TITLE, 32, cy - 180, cx, "center", "#FFD700");
+
+      this.drawButton("☰", 40, 40, 50, 50, "#ded895", "#543847");
+
+      let startY = cy - 40;
+      this.drawButton("PLAY", cx, startY, 200, 50, "#55aa55", "white", true);
+      this.drawButton("ACHIEVEMENTS", cx, startY + 65, 200, 50, "#ff7a00");
+      this.drawButton("CHARACTER", cx, startY + 130, 200, 50, "#4287f5");
+      this.drawButton("LEADERBOARD", cx, startY + 195, 200, 50, "#d1685a");
 
       this.drawText(
         CONFIG.VERSION,
-        16,
+        10,
         CONFIG.HEIGHT - 15,
         CONFIG.WIDTH - 15,
         "right",
         "rgba(255, 255, 255, 0.7)",
+        false,
       );
     }
 
     if (this.state === "SETTINGS") this.drawSettingsPanel();
 
     if (this.state === "GET_READY") {
-      this.drawText("GET READY!", 54, cy - 100, cx, "center", "#ff7a00");
-      this.drawText("Tap or Space to start", 28, cy + 100);
+      this.drawText("GET READY!", 28, cy - 100, cx, "center", "#ff7a00");
+      this.drawText("Tap or Space", 14, cy + 100);
     }
 
     if (this.state === "PLAYING" || this.state === "PAUSED") {
-      this.drawText(this.score.toString(), 48, 80);
-      this.drawButton("II", 40, 40, 50, 50, "#ded895", "#543847");
+      this.drawText(this.score.toString(), 36, 80);
+
+      // --- MOVED COINS BACK TO TOP LEFT ---
+      this.drawText(`💰 ${this.coins}`, 16, 40, 20, "left", "#FFD700");
+
+      this.drawText(
+        `LEVEL ${this.level}`,
+        14,
+        CONFIG.HEIGHT - 30,
+        20,
+        "left",
+        "white",
+      );
+      this.drawButton(
+        "II",
+        CONFIG.WIDTH - 40,
+        40,
+        50,
+        50,
+        "#ded895",
+        "#543847",
+      );
 
       if (this.activePowerUps.magnet > 0) {
         this.ctx.fillStyle = "red";
         this.ctx.fillRect(
           10,
-          CONFIG.HEIGHT - 20,
+          CONFIG.HEIGHT - 65,
           (this.activePowerUps.magnet / 600) * 150,
           10,
         );
@@ -1154,7 +1053,7 @@ export class Game {
         this.ctx.fillStyle = "cyan";
         this.ctx.fillRect(
           10,
-          CONFIG.HEIGHT - 35,
+          CONFIG.HEIGHT - 50,
           (this.activePowerUps.shield / 600) * 150,
           10,
         );
@@ -1164,33 +1063,28 @@ export class Game {
     if (this.state === "PAUSED") {
       this.ctx.fillStyle = "rgba(0,0,0,0.5)";
       this.ctx.fillRect(0, 0, CONFIG.WIDTH, CONFIG.HEIGHT);
-      this.drawText("PAUSED", 54, cy - 120, cx, "center", "#ffce00");
-
-      // Draw the two stacked buttons!
-      this.drawButton("RESUME", cx, cy - 40, 200, 60, "#55aa55", "white", true);
-      this.drawButton("QUIT", cx, cy + 40, 200, 60, "#d1685a");
+      this.drawText("PAUSED", 36, cy - 100, cx, "center", "#ffce00");
+      this.drawButton("RESUME", cx, cy - 20, 200, 50, "#55aa55", "white", true);
+      this.drawButton("QUIT", cx, cy + 50, 200, 50, "#d1685a");
     }
 
     if (this.state === "GAMEOVER") {
       this.drawScorePanel();
-
-      // Removed the 600ms delay! Buttons draw instantly!
       this.drawButton(
         "RESTART",
-        cx + 110,
-        cy + 160,
+        cx + 100,
+        cy + 140,
         180,
-        60,
+        50,
         "#55aa55",
         "white",
         true,
       );
-      this.drawButton("MENU", cx - 110, cy + 160, 180, 60, "#d1685a");
+      this.drawButton("MENU", cx - 100, cy + 140, 180, 50, "#d1685a");
     }
 
     this.drawToast();
-
     this.ctx.restore();
     requestAnimationFrame(this.loop);
-  } // End of loop
-} // End of class
+  }
+}

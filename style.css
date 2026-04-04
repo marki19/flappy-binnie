@@ -5,31 +5,81 @@
     color-scheme: only light;
 }
 
+* {
+    font-family: 'Press Start 2P', monospace;
+    box-sizing: border-box;
+}
+
 body {
     margin: 0;
     padding: 0;
     background-color: #0f0f0f;
-    /* Restores the dark border background */
     display: flex;
     justify-content: center;
-    /* Centers the canvas horizontally */
     align-items: center;
-    /* Centers the canvas vertically */
-
-    /* 100dvh handles mobile address bars perfectly */
     height: 100vh;
     height: 100dvh;
-
     overflow: hidden;
-    font-family: 'Courier New', Courier, monospace;
-
-    /* Disables all mobile browser gestures (pull-to-refresh, pinch zoom) */
     touch-action: none;
     user-select: none;
     -webkit-user-select: none;
 }
 
-/* --- CUSTOM MODAL UI --- */
+/* --- CUSTOM RETRO SCROLLBARS --- */
+::-webkit-scrollbar {
+    width: 14px;
+}
+
+::-webkit-scrollbar-track {
+    background: #3a2630;
+    border-left: 4px solid #543847;
+}
+
+::-webkit-scrollbar-thumb {
+    background: #ded895;
+    border: 4px solid #543847;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: #c2b280;
+}
+
+/* =========================================
+   2. CANVAS AND MODAL BASICS
+========================================= */
+#gameCanvas {
+    background-color: #87CEEB;
+    max-width: 100%;
+    max-height: 100%;
+    width: auto;
+    height: auto;
+    object-fit: contain; /* <-- THIS IS THE MAGIC FIX! */
+    image-rendering: pixelated;
+    box-shadow: 0 0 20px rgba(0, 0, 0, 0.8);
+}
+
+.hidden {
+    display: none !important;
+}
+
+button {
+    font-family: 'Press Start 2P', monospace;
+    border: 4px solid #543847;
+    border-radius: 0px;
+    box-shadow: 4px 4px 0px rgba(0, 0, 0, 0.3);
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: transform 0.1s, box-shadow 0.1s;
+}
+
+button:active {
+    transform: translate(4px, 4px);
+    box-shadow: 0px 0px 0px rgba(0, 0, 0, 0);
+}
+
+/* =========================================
+   3. OVERLAYS & POPUPS (MODALS)
+========================================= */
 .modal-overlay {
     position: fixed;
     top: 0;
@@ -41,57 +91,71 @@ body {
     justify-content: center;
     align-items: center;
     z-index: 300;
-    /* Stays above the canvas and sidebar */
 }
 
-.modal-overlay.hidden {
-    display: none;
-}
-
-.modal-content {
+.modal-content,
+.shop-content,
+.char-panel {
     background: #ded895;
     border: 6px solid #543847;
-    border-radius: 15px;
-    padding: 30px;
+    border-radius: 0px;
+    /* Removed rounded corners for 8-bit look */
+    padding: 25px;
     text-align: center;
-    width: 80%;
-    max-width: 350px;
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.8);
+    width: 90%;
+    max-width: 400px;
+    max-height: 85dvh;
+    overflow-y: auto;
+    box-shadow: 10px 10px 0px rgba(0, 0, 0, 0.6);
     display: flex;
     flex-direction: column;
     gap: 15px;
+    align-items: center;
 }
 
-.modal-content h2 {
+.modal-content h2,
+.shop-content h2,
+.char-panel h2 {
     color: #ff7a00;
-    margin: 0;
+    margin: 0 0 10px 0;
+    font-size: 20px;
+    line-height: 1.4;
     text-shadow: 2px 2px 0px #fff;
 }
 
-.modal-content p {
+.modal-content p,
+.shop-content p,
+.char-panel p {
     color: #543847;
-    font-size: 14px;
-    font-weight: bold;
+    font-size: 11px;
+    line-height: 1.6;
     margin: 0;
 }
 
-#modal-username-input {
+/* INPUT FIELDS */
+input[type="text"],
+#modal-username-input,
+#username-input {
     padding: 12px;
-    font-size: 16px;
-    font-family: 'Courier New', Courier, monospace;
-    font-weight: bold;
-    border: 3px solid #543847;
-    border-radius: 8px;
+    font-size: 12px;
+    /* Smaller to accommodate the wide pixel font */
+    font-family: 'Press Start 2P', monospace;
+    border: 4px solid #543847;
+    border-radius: 0px;
     text-align: center;
     outline: none;
+    width: 100%;
+    background: #fff;
+    color: #543847;
 }
 
+/* TEXT BUTTONS (Links) */
 .text-btn {
     background: none;
     border: none;
+    box-shadow: none;
     color: #d1685a;
-    font-family: 'Courier New', Courier, monospace;
-    font-weight: bold;
+    font-size: 12px;
     text-decoration: underline;
     cursor: pointer;
     margin-top: 5px;
@@ -99,278 +163,195 @@ body {
 
 .text-btn:hover {
     color: #ff0000;
+    transform: none;
 }
 
-/* --- SIDEBAR UI --- */
+/* CLOSE BUTTONS */
+.close-btn {
+    align-self: flex-end;
+    font-size: 24px;
+    background: none;
+    border: none;
+    box-shadow: none;
+    color: #d1685a;
+    padding: 0;
+    margin-bottom: 5px;
+}
+
+.close-btn:active {
+    transform: scale(0.8);
+}
+
+/* =========================================
+   4. SIDEBARS (MENU & LEADERBOARD)
+========================================= */
 .hamburger {
     position: absolute;
-    top: 15px;
-    left: 15px;
-    /* Moved to the top-left corner */
-    font-size: 36px;
+    top: 20px;
+    left: 20px;
+    font-size: 24px;
     color: #ded895;
-    text-shadow: 2px 2px 0px #543847;
+    background: #543847;
+    padding: 10px 15px;
+    border: 4px solid #fff;
     cursor: pointer;
     z-index: 50;
-    transition: transform 0.2s;
+    box-shadow: 4px 4px 0px rgba(0, 0, 0, 0.5);
 }
 
 .hamburger:active {
-    transform: scale(0.9);
+    transform: translate(4px, 4px);
+    box-shadow: none;
 }
 
-.sidebar {
+.sidebar,
+.right-sidebar {
     position: absolute;
     top: 0;
-    left: -100%;
-    /* Hidden off the LEFT side of the screen */
-    width: 280px;
+    width: 300px;
     height: 100dvh;
     background: #ded895;
-    border-right: 6px solid #543847;
-    /* Border moved to the right edge */
-    box-shadow: 5px 0 20px rgba(0, 0, 0, 0.5);
-    /* Shadow reversed to push right */
-    transition: left 0.3s cubic-bezier(0.175, 0.885, 0.32, 1);
-    /* Transition flipped to left */
+    transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1);
     z-index: 200;
-    padding: 20px;
-    box-sizing: border-box;
     display: flex;
     flex-direction: column;
 }
 
+/* LEFT SIDEBAR */
+.sidebar {
+    left: -100%;
+    border-right: 6px solid #543847;
+    box-shadow: 10px 0 0px rgba(0, 0, 0, 0.4);
+    padding: 20px;
+}
+
 .sidebar.open {
     left: 0;
-    /* Slides in perfectly from the left! */
 }
 
 .sidebar h2 {
     color: #ff7a00;
-    text-shadow: 1px 1px 0px #fff;
+    font-size: 18px;
     margin: 10px 0;
-    font-size: 22px;
-}
-
-.close-btn {
-    align-self: flex-end;
-    font-size: 32px;
-    background: none;
-    border: none;
-    color: #d1685a;
-    font-weight: bold;
-    cursor: pointer;
-    margin-bottom: 10px;
+    text-shadow: 2px 2px 0px #fff;
 }
 
 .sidebar-section {
     display: flex;
     flex-direction: column;
-    gap: 10px;
-}
-
-#username-input {
-    padding: 10px;
-    font-family: 'Courier New', Courier, monospace;
-    font-weight: bold;
-    border: 3px solid #543847;
-    border-radius: 8px;
-    outline: none;
+    gap: 12px;
+    margin-bottom: 20px;
 }
 
 .status-text {
-    font-size: 12px;
+    font-size: 10px;
     color: #543847;
-    margin-top: 5px;
-    font-weight: bold;
-}
-
-.settings-grid {
-    gap: 15px;
+    line-height: 1.5;
 }
 
 .vol-control {
     display: flex;
     align-items: center;
     gap: 10px;
-    font-weight: bold;
+    font-size: 12px;
     color: #543847;
 }
 
-#gameCanvas {
-    background-color: #87CEEB;
-
-    /* Ensure the canvas never grows larger than the browser window */
-    max-width: 100%;
-    max-height: 100%;
-
-    /* Let the browser determine the physical display size */
-    width: auto;
-    height: auto;
-
-    /* THE MAGIC TRICK: This forces the canvas to scale up or down 
-       like a movie playing on a TV, preserving the exact aspect ratio 
-       without stretching or squishing your pixel art! */
-    object-fit: cover;
-
-    image-rendering: pixelated;
-    box-shadow: 0 0 20px rgba(0, 0, 0, 0.8);
-}
-
-/* =========================================
-   2. CHARACTER CREATOR MENU UI
-========================================= */
-.hidden {
-    display: none !important;
-}
-
-#charMenuUI {
-    position: absolute;
-    /* Takes the UI out of the normal layout flow */
-    top: 0;
-    left: 0;
-    width: 100vw;
-    height: 100dvh;
-    background: rgba(0, 0, 0, 0.85);
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    z-index: 100;
-    /* Forces the menu to always sit on top of the canvas */
-    touch-action: none;
-}
-
-.char-panel {
-    box-sizing: border-box;
-    /* THE MAGIC FIX: Keeps padding inside the width */
-    background: #ded895;
-    border: 4px solid #543847;
-    /* Thinned from 6px to save space */
-    border-radius: 15px;
-    padding: 15px;
-    /* Reduced from 20px to fit small phones better */
-    width: 95%;
-    /* Now perfectly respects the screen width */
+/* RIGHT SIDEBAR (LEADERBOARD) */
+.right-sidebar {
+    right: -100%;
+    border-left: 6px solid #543847;
+    box-shadow: -10px 0 0px rgba(0, 0, 0, 0.4);
+    width: 90%;
     max-width: 380px;
-    max-height: 90dvh;
+}
+
+.right-sidebar.open {
+    right: 0;
+}
+
+.sidebar-header {
+    background: #543847;
+    padding: 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 4px solid #3a2630;
+}
+
+.sidebar-header h2 {
+    margin: 0;
+    font-size: 16px;
+    color: #ffce00;
+    text-shadow: 2px 2px 0px #000;
+}
+
+.leaderboard-list {
+    padding: 15px;
     overflow-y: auto;
     display: flex;
     flex-direction: column;
-    align-items: center;
-    box-shadow: 0px 10px 30px rgba(0, 0, 0, 0.5);
-}
-
-.char-panel h2 {
-    margin: 0 0 10px 0;
-    color: #ff7a00;
-    text-shadow: 2px 2px 0px #fff;
-    font-size: 24px;
-    /* Slightly smaller for mobile */
-}
-
-
-.crop-container:active {
-    cursor: grabbing;
-}
-
-.crop-container {
-    position: relative;
-    width: 100%;
-    /* Reduced from 300px to 220px to prevent vertical screen overflow */
-    max-width: 220px;
-    aspect-ratio: 1 / 1;
-    height: auto;
-    background: #333;
-    border-radius: 10px;
-    overflow: hidden;
-    cursor: grab;
-    border: 4px solid #543847;
-    margin: 0 auto;
-    /* Centers it nicely */
-}
-
-.crop-overlay {
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    pointer-events: none;
-    box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.5);
-    border-radius: 50%;
-    border: 4px dashed white;
-    /* Shrunk the circle to fit the new container */
-    width: 180px;
-    height: 180px;
-    margin: auto;
-}
-
-#cropCanvas {
-    width: 100%;
-    height: 100%;
-}
-
-#cameraFeed {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-}
-
-.controls {
-    width: 100%;
-    margin: 15px 0;
-    display: flex;
-    align-items: center;
-    font-weight: bold;
-}
-
-.controls input {
-    flex-grow: 1;
-    margin-left: 10px;
-    cursor: pointer;
-}
-
-/* Force button groups to wrap if the screen is too narrow */
-.btn-group {
-    display: flex;
-    flex-wrap: wrap;
-    /* Allows buttons to stack if they run out of room */
     gap: 10px;
-    width: 100%;
-    justify-content: center;
-    margin-bottom: 10px;
 }
 
-.bottom-btns {
-    margin-top: 10px;
+.leaderboard-item {
+    background: #fff;
+    border: 4px solid #543847;
+    padding: 15px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 10px;
+    /* Slightly smaller to accommodate big numbers */
+    gap: 10px;
+    /* Adds a forced physical gap so text never overlaps */
 }
 
-/* Ensure action buttons don't burst out of their flex containers */
+.lb-rank {
+    width: 25px;
+    color: #d1685a;
+    flex-shrink: 0;
+    /* Never shrink the rank number */
+}
+
+.lb-name {
+    flex-grow: 1;
+    text-align: left;
+    color: #543847;
+
+    /* THE MAGIC FIX: Forces long names to turn into "Name..." instead of vanishing */
+    min-width: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.lb-score { 
+    color: #55aa55; 
+    
+    /* 1. Remove Flexbox so it doesn't push text out the left side! */
+    display: block;
+    text-align: right;
+    margin-left: auto; /* Pushes the score perfectly to the right edge */
+    
+    /* 2. Truncate the END of the number, not the beginning */
+    flex-shrink: 0; 
+    max-width: 45%; 
+    white-space: nowrap;
+    overflow: hidden; 
+    text-overflow: ellipsis; 
+}
+
+/* =========================================
+   5. STANDARD BUTTON STYLES & COMPONENTS
+========================================= */
 .action-btn,
 .success-btn,
 .danger-btn {
-    font-family: 'Courier New', Courier, monospace;
-    font-weight: bold;
-    font-size: 14px;
-    /* Shrunk slightly from 16px */
-    padding: 10px 12px;
-    border-radius: 8px;
-    border: 3px solid #543847;
-    cursor: pointer;
-    text-align: center;
+    font-size: 12px;
+    padding: 12px 15px;
     color: white;
-    transition: transform 0.1s;
-    flex: 1 1 auto;
-    /* Allows them to shrink gracefully */
-    white-space: nowrap;
-    /* Prevents text from breaking weirdly */
-}
-
-.action-btn:active,
-.success-btn:active,
-.danger-btn:active {
-    transform: scale(0.95);
-    /* Little click animation */
+    width: 100%;
 }
 
 .action-btn {
@@ -385,212 +366,73 @@ body {
     background: #d1685a;
 }
 
-.upload-btn {
-    display: inline-block;
-    padding: 10px 15px;
-}
-
-/* --- WING SELECTOR UI --- */
-.wing-selector {
-    width: 100%;
-    text-align: center;
-    margin: 15px 0 10px 0;
-}
-
-.wing-selector p {
-    margin: 0 0 8px 0;
-    font-weight: bold;
-    color: #543847;
-}
-
-.wing-btn-group {
+.btn-group {
     display: flex;
     flex-wrap: wrap;
-    /* Crucial for phones with narrow screens */
+    gap: 10px;
+    width: 100%;
     justify-content: center;
-    gap: 8px;
 }
 
-.wing-btn {
-    font-family: 'Courier New', Courier, monospace;
-    font-weight: bold;
-    font-size: 14px;
-    padding: 8px 12px;
-    border-radius: 6px;
-    border: 3px solid #543847;
-    background: #c2b280;
-    color: #543847;
-    cursor: pointer;
-    transition: all 0.1s;
-}
-
-.wing-btn.active {
-    background: #ff7a00;
-    color: white;
-    border-color: white;
-    transform: scale(1.05);
-}
-
-/* --- SMART INSTALL NOTIFICATION BANNER --- */
-.install-toast {
-    position: absolute;
-    top: 20px;
-    left: 50%;
-    /* Start the banner hidden above the screen */
-    transform: translateX(-50%) translateY(-150%);
-    width: 90%;
-    max-width: 400px;
-    background: rgba(15, 15, 15, 0.95);
-    border: 3px solid #543847;
-    border-radius: 15px;
-    padding: 12px;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    z-index: 10000;
-    color: white;
-    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
-    /* Bouncy slide-in animation */
-    transition: transform 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-}
-
-/* When this class is added via JS, it slides down! */
-.install-toast.show {
-    transform: translateX(-50%) translateY(0);
-}
-
-.toast-content {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-}
-
-.toast-icon {
-    width: 45px;
-    height: 45px;
-    border-radius: 8px;
-    object-fit: cover;
-    background: #87CEEB;
-}
-
-.toast-text {
-    display: flex;
-    flex-direction: column;
-}
-
-.toast-text strong {
-    font-size: 16px;
-    color: #ff7a00;
-}
-
-.toast-text span {
-    font-size: 12px;
-    color: #ccc;
-}
-
-.toast-btn {
-    background: #55aa55;
-    color: white;
-    border: none;
-    border-radius: 20px;
-    padding: 8px 15px;
-    font-weight: bold;
-    cursor: pointer;
-}
-
-.toast-close {
-    background: transparent;
-    color: #aaa;
-    border: none;
-    font-size: 16px;
-    cursor: pointer;
-    padding: 0 5px;
-}
-
-/* --- CHARACTER SHOP UI --- */
-.shop-content {
-    background: #ded895;
-    border: 6px solid #543847;
-    border-radius: 15px;
-    padding: 20px;
-    width: 90%;
-    max-width: 450px;
-    max-height: 85dvh;
-    overflow-y: auto;
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.8);
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-}
-
+/* WALLET & GRIDS (Shop & Achievements) */
 .wallet-display {
     background: #543847;
     color: #FFD700;
-    padding: 10px 20px;
-    border-radius: 10px;
-    font-family: 'Courier New', Courier, monospace;
-    font-weight: bold;
-    font-size: 20px;
-    margin-bottom: 15px;
+    padding: 15px;
+    border: 4px solid #fff;
+    font-size: 14px;
     width: 100%;
     text-align: center;
-    box-sizing: border-box;
+    margin-bottom: 10px;
+    box-shadow: 4px 4px 0px rgba(0, 0, 0, 0.3);
 }
 
 .shop-grid {
     display: grid;
     grid-template-columns: repeat(2, 1fr);
-    gap: 10px;
+    gap: 12px;
     width: 100%;
 }
 
 .shop-item {
     background: #fff;
-    border: 3px solid #543847;
-    border-radius: 8px;
-    padding: 15px 10px;
-    text-align: center;
-    cursor: pointer;
+    border: 4px solid #543847;
+    padding: 15px 5px;
     display: flex;
     flex-direction: column;
     align-items: center;
-    justify-content: center;
-    min-height: 80px;
-    transition: transform 0.1s;
+    text-align: center;
 }
 
-.shop-item:active {
-    transform: scale(0.95);
+.shop-item span {
+    font-size: 10px;
+    line-height: 1.4;
+    color: #543847;
 }
 
-/* The different states of the buttons */
+.shop-item small {
+    font-size: 8px;
+    margin-top: 8px;
+    color: #888;
+}
+
 .shop-item.locked {
     background: #a0a0a0;
-    color: #555;
-    cursor: not-allowed;
     border-color: #777;
+    cursor: not-allowed;
 }
 
 .shop-item.equipped {
     background: #55aa55;
-    color: white;
     border-color: #fff;
     box-shadow: 0 0 10px #55aa55;
 }
 
-.shop-item span {
-    font-weight: bold;
-    font-family: 'Courier New', Courier, monospace;
-    font-size: 16px;
+.shop-item.equipped span,
+.shop-item.equipped small {
+    color: #fff;
 }
 
-.shop-item small {
-    font-size: 11px;
-    margin-top: 5px;
-    font-family: Arial, sans-serif;
-}
-
-/* --- ACHIEVEMENTS UI --- */
 .achievements-list {
     display: flex;
     flex-direction: column;
@@ -600,9 +442,8 @@ body {
 
 .achievement-item {
     background: #fff;
-    border: 3px solid #543847;
-    border-radius: 8px;
-    padding: 10px;
+    border: 4px solid #543847;
+    padding: 15px;
     display: flex;
     align-items: center;
     gap: 15px;
@@ -611,7 +452,6 @@ body {
 
 .achievement-item.locked {
     background: #a0a0a0;
-    color: #555;
     border-color: #777;
 }
 
@@ -619,18 +459,11 @@ body {
     width: 40px;
     height: 40px;
     min-width: 40px;
-    border-radius: 8px;
+    border: 4px solid rgba(0, 0, 0, 0.2);
     display: flex;
     justify-content: center;
     align-items: center;
-    font-size: 20px;
-    font-weight: bold;
-    border: 2px solid rgba(0, 0, 0, 0.2);
-}
-
-.achievement-item.locked .ach-icon {
-    background: #888;
-    color: #555;
+    font-size: 16px;
 }
 
 .achievement-item:not(.locked) .ach-icon {
@@ -638,101 +471,120 @@ body {
     color: white;
 }
 
+.achievement-item.locked .ach-icon {
+    background: #888;
+    color: #555;
+}
+
 .ach-text {
     display: flex;
     flex-direction: column;
+    gap: 6px;
 }
 
 .ach-text span {
-    font-weight: bold;
-    font-family: 'Courier New', Courier, monospace;
-    font-size: 15px;
+    font-size: 10px;
+    color: #543847;
+    line-height: 1.4;
 }
 
 .ach-text small {
-    font-size: 11px;
-    font-family: Arial, sans-serif;
-    margin-top: 3px;
+    font-size: 8px;
+    color: #777;
+    line-height: 1.4;
 }
 
-/* --- RIGHT SIDEBAR: LEADERBOARD --- */
-.right-sidebar {
-    position: fixed;
+/* =========================================
+   6. CAMERA / CROP UI
+========================================= */
+.crop-container {
+    position: relative;
+    width: 100%;
+    max-width: 220px;
+    aspect-ratio: 1/1;
+    background: #333;
+    border: 4px solid #543847;
+    margin: 0 auto;
+    overflow: hidden;
+}
+
+.crop-overlay {
+    position: absolute;
     top: 0;
-    right: -100%;
-    /* Hidden off-screen to the right */
-    width: 85%;
-    max-width: 350px;
-    height: 100dvh;
-    background: #ded895;
-    border-left: 6px solid #543847;
-    box-shadow: -5px 0 15px rgba(0, 0, 0, 0.5);
-    transition: right 0.3s ease-in-out;
-    z-index: 250;
-    display: flex;
-    flex-direction: column;
-}
-
-.right-sidebar.open {
+    left: 0;
     right: 0;
-    /* Slides in */
+    bottom: 0;
+    pointer-events: none;
+    box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.5);
+    border: 4px dashed white;
+    width: 100%;
+    height: 100%;
+    margin: auto;
 }
 
-.sidebar-header {
-    background: #543847;
-    padding: 20px;
+#cropCanvas,
+#cameraFeed {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.controls {
+    width: 100%;
     display: flex;
-    justify-content: space-between;
     align-items: center;
-    border-bottom: 4px solid #3a2630;
+    font-size: 10px;
+    color: #543847;
 }
 
-.leaderboard-list {
-    padding: 15px;
-    overflow-y: auto;
+.controls input {
     flex-grow: 1;
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
+    margin-left: 10px;
 }
 
-.leaderboard-item {
-    background: #fff;
-    border: 3px solid #543847;
-    border-radius: 8px;
+/* --- INSTALL TOAST --- */
+.install-toast {
+    position: absolute;
+    top: 20px;
+    left: 50%;
+    transform: translateX(-50%) translateY(-150%);
+    width: 90%;
+    max-width: 400px;
+    background: rgba(15, 15, 15, 0.95);
+    border: 4px solid #543847;
     padding: 12px;
     display: flex;
     align-items: center;
     justify-content: space-between;
-    font-weight: bold;
-    font-family: 'Courier New', Courier, monospace;
-    font-size: 16px;
+    z-index: 10000;
+    box-shadow: 6px 6px 0px rgba(0, 0, 0, 0.5);
+    transition: transform 0.5s;
 }
 
-.lb-rank {
-    width: 35px;
-    color: #d1685a;
-    font-size: 18px;
+.install-toast.show {
+    transform: translateX(-50%) translateY(0);
 }
 
-.lb-name {
-    flex-grow: 1;
-    text-align: left;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    color: #543847;
-    padding-right: 10px;
+.toast-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 0;
+    background: #87CEEB;
 }
 
-.lb-score {
-    color: #55aa55;
-    display: flex;
-    align-items: center;
-    gap: 5px;
-    font-size: 18px;
+.toast-text strong {
+    font-size: 12px;
+    color: #ff7a00;
 }
 
-.lb-crown {
-    font-size: 20px;
+.toast-text span {
+    font-size: 9px;
+    color: #ccc;
+    display: block;
+    margin-top: 4px;
+}
+
+.toast-btn {
+    font-size: 10px;
+    padding: 10px;
 }
