@@ -372,7 +372,7 @@ export class Game {
     );
   }
 
-  pprocessClick(mx, my) {
+  processClick(mx, my) {
     let cx = CONFIG.WIDTH / 2;
     let cy = CONFIG.HEIGHT / 2;
 
@@ -380,14 +380,9 @@ export class Game {
       if (this.isClicked(mx, my, 40, 40, 50, 50)) {
         this.playSFX("flap");
         const sidebar = document.getElementById("sidebar");
-        const lbSidebar = document.getElementById("leaderboard-sidebar");
-
-        // --- UX FIX: Auto-close leaderboard when Profile opens ---
-        if (lbSidebar) lbSidebar.classList.remove("open");
-
         if (sidebar) sidebar.classList.add("open");
       }
-      
+
       let startY = cy - 40;
       if (this.isClicked(mx, my, cx, startY, 200, 50)) this.startFromMenu();
       if (this.isClicked(mx, my, cx, startY + 65, 200, 50))
