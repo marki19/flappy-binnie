@@ -19,13 +19,6 @@ window.onload = () => {
   canvas.height = CONFIG.HEIGHT;
   ctx.imageSmoothingEnabled = false;
 
-  ctx.fillStyle = "black";
-  ctx.fillRect(0, 0, CONFIG.WIDTH, CONFIG.HEIGHT);
-  ctx.fillStyle = "white";
-  ctx.font = "30px Courier";
-  ctx.textAlign = "center";
-  ctx.fillText("Loading Assets...", CONFIG.WIDTH / 2, CONFIG.HEIGHT / 2);
-
   const loginModal = document.getElementById("login-modal");
   const modalInput = document.getElementById("modal-username-input");
   const modalSubmit = document.getElementById("modal-login-btn");
@@ -33,9 +26,6 @@ window.onload = () => {
 
   const sidebar = document.getElementById("sidebar");
   const closeSidebarBtn = document.getElementById("close-sidebar");
-
-  const loginBtn = document.getElementById("login-btn");
-  const renameBtn = document.getElementById("rename-btn");
   const usernameInput = document.getElementById("username-input");
 
   const lbSidebar = document.getElementById("leaderboard-sidebar");
@@ -45,8 +35,6 @@ window.onload = () => {
 
   const performCloudLogin = async (playerName) => {
     if (modalSubmit) modalSubmit.innerText = "LOADING...";
-    if (loginBtn) loginBtn.innerText = "WAIT...";
-
     let cloudData = null;
 
     try {
@@ -72,7 +60,6 @@ window.onload = () => {
 
     const loginStatus = document.getElementById("login-status");
     if (loginStatus) loginStatus.innerText = "Playing as: " + playerName;
-    if (loginBtn) loginBtn.innerText = "LOAD";
 
     if (game) {
       game.updatePlayerData(playerName, cloudData);
@@ -83,20 +70,18 @@ window.onload = () => {
 
   loadAssets(() => {
     let savedName = localStorage.getItem("fb_username");
-
     if (!savedName) {
       if (loginModal) loginModal.classList.remove("hidden");
       if (modalSubmit)
-        modalSubmit.addEventListener("click", () => {
+        modalSubmit.onclick = () => {
           const typedName = modalInput.value.trim();
           if (typedName) performCloudLogin(typedName);
-        });
+        };
       if (modalGuest)
-        modalGuest.addEventListener("click", () => {
-          if (loginModal) loginModal.classList.add("hidden");
+        modalGuest.onclick = () => {
           let guestName = "Guest_" + Math.floor(Math.random() * 1000);
-          game = new Game(canvas, ctx, guestName, null);
-        });
+          performCloudLogin(guestName);
+        };
     } else {
       performCloudLogin(savedName);
     }
@@ -106,127 +91,108 @@ window.onload = () => {
       const toggleSfxBtn = document.getElementById("toggle-sfx");
       const volumeSlider = document.getElementById("volume-slider");
 
-      if (toggleBgmBtn && game)
-        toggleBgmBtn.innerText = game.settings.bgm
-          ? "🎵 Music: ON"
-          : "🎵 Music: OFF";
-      if (toggleSfxBtn && game)
-        toggleSfxBtn.innerText = game.settings.sfx
-          ? "🔊 SFX: ON"
-          : "🔊 SFX: OFF";
-      if (volumeSlider && game) volumeSlider.value = game.settings.volume;
-
       if (toggleBgmBtn)
-        toggleBgmBtn.addEventListener("click", () => {
+        toggleBgmBtn.onclick = () => {
           game.settings.bgm = !game.settings.bgm;
           toggleBgmBtn.innerText = game.settings.bgm
             ? "🎵 Music: ON"
             : "🎵 Music: OFF";
           game.applySettings();
-        });
-
+        };
       if (toggleSfxBtn)
-        toggleSfxBtn.addEventListener("click", () => {
+        toggleSfxBtn.onclick = () => {
           game.settings.sfx = !game.settings.sfx;
           toggleSfxBtn.innerText = game.settings.sfx
             ? "🔊 SFX: ON"
             : "🔊 SFX: OFF";
           game.applySettings();
-          if (game) game.playSFX("flap");
-        });
-
+          game.playSFX("flap");
+        };
       if (volumeSlider)
-        volumeSlider.addEventListener("input", (e) => {
+        volumeSlider.oninput = (e) => {
           game.settings.volume = parseFloat(e.target.value);
           game.applySettings();
-        });
+        };
     }, 500);
   });
 
   if (closeSidebarBtn)
-    closeSidebarBtn.addEventListener("click", () =>
-      sidebar.classList.remove("open"),
-    );
+    closeSidebarBtn.onclick = () => sidebar.classList.remove("open");
 
-  if (loginBtn) {
-    loginBtn.addEventListener("click", () => {
-      const typedName = usernameInput.value.trim();
-      if (!typedName) return;
-      performCloudLogin(typedName);
-    });
-  }
+  // --- CLEAN AUTOMATIC RENAME / SWITCH LOGIC ---
+  if (usernameInput) {
+    let isSaving = false;
 
-  if (renameBtn) {
-    renameBtn.addEventListener("click", async () => {
-      const newName = usernameInput.value.trim();
+    const handleAutoRename = async () => {
+      if (!game || isSaving) return;
+      const newName = usernameInput.value.trim().replace(/[\/\\]/g, "");
       const oldName = game.username;
 
       if (!newName || newName === oldName) return;
-      renameBtn.innerText = "SAVING...";
+      isSaving = true;
+
+      const loginStatus = document.getElementById("login-status");
+      if (loginStatus) loginStatus.innerText = "Syncing profile... 📡";
+
+      // CRITICAL: Update local memory IDs immediately to block background saves from re-creating the old name.
+      game.username = newName;
+      localStorage.setItem("fb_username", newName);
 
       try {
-        await setDoc(
-          doc(db, "users", newName),
-          {
-            username: newName,
-            highScore: game.highScore,
-            coins: game.coins,
-            unlockedAchievements: game.unlockedAchievements,
-            lastPlayed: new Date(),
-          },
-          { merge: true },
-        );
+        const newUserRef = doc(db, "users", newName);
+        const docSnap = await getDoc(newUserRef);
 
-        if (oldName && !oldName.startsWith("Guest_")) {
-          await deleteDoc(doc(db, "users", oldName));
+        if (docSnap.exists()) {
+          // SCENARIO A: Switch to existing account
+          const cloudData = docSnap.data();
+          game.updatePlayerData(newName, cloudData);
+        } else {
+          // SCENARIO B: Rename to new name (Copy & Delete)
+          await setDoc(
+            newUserRef,
+            {
+              username: newName,
+              highScore: game.highScore || 0,
+              coins: game.coins || 0,
+              unlockedAchievements: game.unlockedAchievements || [],
+              lastPlayed: new Date(),
+            },
+            { merge: true },
+          );
+
+          // FIX: Deletion now fires for ALL names, including previous Guest names
+          if (oldName && oldName.trim() !== "") {
+            try {
+              await deleteDoc(doc(db, "users", oldName));
+            } catch (delErr) {
+              console.warn("Old doc already deleted.");
+            }
+          }
         }
-
-        localStorage.setItem("fb_username", newName);
-        game.username = newName;
-        const loginStatus = document.getElementById("login-status");
         if (loginStatus) loginStatus.innerText = "Playing as: " + newName;
-        renameBtn.innerText = "RENAME";
       } catch (e) {
-        console.error(e);
-        renameBtn.innerText = "ERROR";
+        console.error("Rename Error:", e);
+        if (loginStatus) loginStatus.innerText = "Error syncing!";
       }
-    });
+      isSaving = false;
+    };
+
+    usernameInput.onkeydown = (e) => {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        usernameInput.blur();
+      }
+    };
+    usernameInput.onblur = handleAutoRename;
   }
 
-  const closeLB = () => {
-    if (lbSidebar) lbSidebar.classList.remove("open");
-    if (leaderboardUnsubscribe) {
-      leaderboardUnsubscribe();
-      leaderboardUnsubscribe = null;
-    }
-  };
-  if (lbCloseBtn) lbCloseBtn.addEventListener("click", closeLB);
-
   window.openLeaderboard = () => {
-    window.lbJustOpened = true;
-    setTimeout(() => {
-      window.lbJustOpened = false;
-    }, 300);
-
-    // --- UX FIX: Auto-close the profile sidebar when Leaderboard opens ---
     if (sidebar) sidebar.classList.remove("open");
-
     if (lbSidebar) lbSidebar.classList.add("open");
-    if (lbList)
-      lbList.innerHTML =
-        "<div style='text-align:center; padding: 20px; font-weight:bold; color:#543847;'>Establishing link... 📡</div>";
-
     if (leaderboardUnsubscribe) leaderboardUnsubscribe();
-
-    if (typeof subscribeToLeaderboard === "function") {
-      leaderboardUnsubscribe = subscribeToLeaderboard(50, (data) => {
-        if (lbList) lbList.innerHTML = "";
-        if (data.length === 0) {
-          lbList.innerHTML =
-            "<div style='text-align:center; padding: 20px; font-weight:bold;'>No flight data found.</div>";
-          return;
-        }
-
+    leaderboardUnsubscribe = subscribeToLeaderboard(50, (data) => {
+      if (lbList) {
+        lbList.innerHTML = "";
         data.forEach((player, index) => {
           let rank = index + 1;
           let crown =
@@ -235,42 +201,41 @@ window.onload = () => {
           item.className = "leaderboard-item";
           if (player.username === localStorage.getItem("fb_username"))
             item.style.background = "#ffce00";
-          item.innerHTML = `<div class="lb-rank">#${rank}</div><div class="lb-name">${player.username || "Unknown"}</div><div class="lb-score"><span class='lb-crown'>${crown}</span> ${player.highScore || 0}</div>`;
+          item.innerHTML = `<div class="lb-rank">#${rank}</div><div class="lb-name">${player.username || "Unknown"}</div><div class="lb-score"><span>${crown}</span> ${player.highScore || 0}</div>`;
           lbList.appendChild(item);
         });
-      });
-    }
+      }
+    });
   };
 
-  // --- MOBILE FIX: Handle both Mouse and Touch inputs for closing sidebars ---
-  const handleOutsideClick = (e) => {
+  const closeLB = () => {
+    if (lbSidebar) lbSidebar.classList.remove("open");
+    if (leaderboardUnsubscribe) {
+      leaderboardUnsubscribe();
+      leaderboardUnsubscribe = null;
+    }
+  };
+  if (lbCloseBtn) lbCloseBtn.onclick = closeLB;
+
+  window.addEventListener("mousedown", (e) => {
     ["login-modal", "achievements-modal", "shop-modal"].forEach((id) => {
       let m = document.getElementById(id);
       if (m && e.target === m) m.classList.add("hidden");
     });
-
     if (
       sidebar &&
       sidebar.classList.contains("open") &&
       !sidebar.contains(e.target)
-    ) {
+    )
       sidebar.classList.remove("open");
-    }
     if (
       lbSidebar &&
       lbSidebar.classList.contains("open") &&
       !lbSidebar.contains(e.target)
-    ) {
-      if (!window.lbJustOpened) closeLB();
-    }
-  };
+    )
+      closeLB();
+  });
 
-  window.addEventListener("mousedown", handleOutsideClick);
-  window.addEventListener("touchstart", handleOutsideClick, { passive: true });
-
-  if ("serviceWorker" in navigator) {
-    window.addEventListener("load", () =>
-      navigator.serviceWorker.register("./sw.js").catch(() => {}),
-    );
-  }
+  if ("serviceWorker" in navigator)
+    navigator.serviceWorker.register("./sw.js").catch(() => {});
 };

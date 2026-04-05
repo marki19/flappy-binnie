@@ -12,7 +12,6 @@ export class Game {
     this.ctx = ctx;
     this.username = playerName;
 
-    // --- PURE CLOUD TRUST ---
     this.highScore = cloudData?.highScore || 0;
     this.coins = cloudData?.coins || 0;
     this.unlockedAchievements = cloudData?.unlockedAchievements || [];
@@ -301,14 +300,13 @@ export class Game {
 
   bindEvents() {
     const handlePointer = (e) => {
-      // --- UX FIX: Swallow the tap if a sidebar is open! ---
       const sidebar = document.getElementById("sidebar");
       const lbSidebar = document.getElementById("leaderboard-sidebar");
       if (
         (sidebar && sidebar.classList.contains("open")) ||
         (lbSidebar && lbSidebar.classList.contains("open"))
       ) {
-        return; // Stops the game from reacting to the touch!
+        return;
       }
 
       if (e.target !== this.canvas) return;
@@ -380,6 +378,8 @@ export class Game {
       if (this.isClicked(mx, my, 40, 40, 50, 50)) {
         this.playSFX("flap");
         const sidebar = document.getElementById("sidebar");
+        const lbSidebar = document.getElementById("leaderboard-sidebar");
+        if (lbSidebar) lbSidebar.classList.remove("open");
         if (sidebar) sidebar.classList.add("open");
       }
 
@@ -499,6 +499,32 @@ export class Game {
     }
 
     this.ctx.fillStyle = color;
+    this.ctx.fillText(text, x, y);
+  }
+
+  // --- REBUILT 8-BIT CRISP LOGO ---
+  drawLogoText(text, x, y, size) {
+    this.ctx.textAlign = "center";
+    this.ctx.textBaseline = "middle";
+    this.ctx.font = `${size}px 'Press Start 2P', Courier`;
+
+    // THE FIX: "miter" creates sharp pixel-perfect corners instead of "round" melted plastic corners!
+    this.ctx.lineJoin = "miter";
+    this.ctx.miterLimit = 2; // Stops sharp spikes from glitching across the screen
+
+    // Layer 1: Thick dark brown outline with a slight drop shadow
+    this.ctx.lineWidth = Math.floor(size / 3.5);
+    this.ctx.strokeStyle = "#543847";
+    this.ctx.strokeText(text, x, y + 4);
+    this.ctx.strokeText(text, x, y);
+
+    // Layer 2: Crisp white inner outline
+    this.ctx.lineWidth = Math.floor(size / 8);
+    this.ctx.strokeStyle = "#ffffff";
+    this.ctx.strokeText(text, x, y);
+
+    // Layer 3: Perfect yellow fill right in the center
+    this.ctx.fillStyle = "#ffce00";
     this.ctx.fillText(text, x, y);
   }
 
@@ -847,17 +873,14 @@ export class Game {
       this.ctx.globalAlpha = alpha / 255;
 
       if (img && img.complete) {
-        // --- MOBILE FIX: Perfect Aspect Ratio Scaling ---
         let areaW = CONFIG.WIDTH;
         let areaH = CONFIG.HEIGHT - CONFIG.BG_OFFSET;
 
-        // Find the math ratio needed to "cover" the screen without stretching
         let scale = Math.max(areaW / img.width, areaH / img.height);
 
         let drawW = img.width * scale;
         let drawH = img.height * scale;
 
-        // Center the background perfectly on the screen
         let drawX = (areaW - drawW) / 2;
         let drawY = CONFIG.BG_OFFSET;
 
@@ -1007,7 +1030,9 @@ export class Game {
     let cy = CONFIG.HEIGHT / 2;
 
     if (this.state === "MENU") {
-      this.drawText(CONFIG.TITLE, 32, cy - 180, cx, "center", "#FFD700");
+      // --- LOWERED TITLE Y-COORDINATES ---
+      this.drawLogoText("FLAPPY", cx, cy - 290, 40);
+      this.drawLogoText("BINNIE", cx, cy - 230, 50);
 
       this.drawButton("☰", 40, 40, 50, 50, "#ded895", "#543847");
 
@@ -1037,10 +1062,7 @@ export class Game {
 
     if (this.state === "PLAYING" || this.state === "PAUSED") {
       this.drawText(this.score.toString(), 36, 80);
-
-      // --- MOVED COINS BACK TO TOP LEFT ---
       this.drawText(`💰 ${this.coins}`, 16, 40, 20, "left", "#FFD700");
-
       this.drawText(
         `LEVEL ${this.level}`,
         14,
